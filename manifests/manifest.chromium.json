@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Duel Analyzer",
+  "version": "0.1.0",
+  "description": "Realtime duel analyzer overlay",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["*://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}
