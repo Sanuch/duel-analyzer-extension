@@ -3,13 +3,16 @@ import { extractStep } from "../core/extractor";
 import { createInitialState } from "../core/model";
 import { recognise } from "../core/recogniser";
 import { saveBattleSnapshot } from "../integrations/historyStorage";
-import { localResources } from "../resources-client/localResources";
+import { getSelectors, initResources } from "../resources-client/resourcesClient";
 import { render } from "../ui/overlay";
 
 const state = createInitialState();
 
 async function bootstrap(): Promise<void> {
-  const container = document.querySelector(localResources.selectors.stepContainer);
+  await initResources();
+
+  const selectors = getSelectors();
+  const container = document.querySelector(selectors.stepContainer);
   if (!(container instanceof HTMLElement)) {
     return;
   }
@@ -18,7 +21,7 @@ async function bootstrap(): Promise<void> {
   let sequence = 0;
 
   // Process existing steps once on startup.
-  for (const node of Array.from(container.querySelectorAll(localResources.selectors.stepItem))) {
+  for (const node of Array.from(container.querySelectorAll(selectors.stepItem))) {
     if (!knownNodes.has(node)) {
       sequence += 1;
       await processStepNode(node, sequence);

@@ -1,24 +1,18 @@
-import { localResources } from "../resources-client/localResources";
+import { getPatterns } from "../resources-client/resourcesClient";
+import type { CompiledPatterns, ResourceLang } from "../resources-client/types";
 import type { RawStep, StepEvent } from "./model";
 
-export function recognise(step: RawStep): StepEvent[] {
+export function recognise(
+  step: RawStep,
+  lang: ResourceLang = "ru",
+  patterns?: CompiledPatterns,
+): StepEvent[] {
+  const p = patterns ?? getPatterns(lang);
+
   return step.texts.map((text) => {
-    if (matchesAny(text, localResources.patterns.miracle)) {
-      return { type: "MIRACLE", text };
-    }
-
-    if (matchesAny(text, localResources.patterns.influence)) {
-      return { type: "INFLUENCE", text };
-    }
-
-    if (matchesAny(text, localResources.patterns.voice)) {
-      return { type: "VOICE", text };
-    }
-
-    if (matchesAny(text, localResources.patterns.empty)) {
-      return { type: "EMPTY", text };
-    }
-
+    if (matchesAny(text, p.miracle)) return { type: "MIRACLE", text };
+    if (matchesAny(text, p.influence)) return { type: "INFLUENCE", text };
+    if (matchesAny(text, p.voice)) return { type: "VOICE", text };
     return { type: "UNKNOWN", text };
   });
 }

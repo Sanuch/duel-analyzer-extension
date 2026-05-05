@@ -45,9 +45,5 @@ function resolveStepOwner(stepNumber: number): "HERO" | "OPPT" {
 }
 
 function eventLabel(type: StepEvent["type"]): string {
-  if (type === "UNKNOWN") {
-    return "UNKNOWN";
-  }
-
   return type;
 }

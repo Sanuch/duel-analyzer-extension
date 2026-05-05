@@ -3,7 +3,7 @@
   "name": "Duel Analyzer",
   "version": "0.1.0",
   "description": "Realtime duel analyzer overlay",
-  "permissions": ["activeTab", "storage"],
+  "permissions": ["activeTab", "storage", "alarms"],
   "host_permissions": ["*://*/*"],
   "content_scripts": [
     {

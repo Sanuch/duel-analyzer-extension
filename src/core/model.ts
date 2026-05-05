@@ -1,4 +1,4 @@
-export type EventType = "VOICE" | "INFLUENCE" | "MIRACLE" | "EMPTY" | "UNKNOWN";
+export type EventType = "VOICE" | "INFLUENCE" | "MIRACLE" | "UNKNOWN";
 
 export interface StepEvent {
   type: EventType;
