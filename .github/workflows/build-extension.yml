@@ -32,6 +32,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Generate version
+        run: npm run version:generate
+
       - name: Build extension (${{ matrix.browser }})
         env:
           VITE_PHRASES_MANIFEST_URL: ${{ vars.VITE_PHRASES_MANIFEST_URL }}

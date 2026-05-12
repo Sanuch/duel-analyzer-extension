@@ -60,6 +60,43 @@ The workflow [.github/workflows/build-extension.yml](.github/workflows/build-ext
 **Required Repository Variable:**
 - `VITE_PHRASES_MANIFEST_URL` — URL to the phrases repository manifest (set in repository settings under Variables)
 
+## Versioning System
+
+The extension uses semantic versioning with automatic patch generation:
+
+**Quick Start:**
+```bash
+npm run build          # Builds with auto-generated patch version
+```
+
+**For Major/Minor Updates:**
+1. Edit `VERSION.json`:
+   ```json
+   {
+     "major": 1,
+     "minor": 1
+   }
+   ```
+2. Run `npm run build`
+
+**Check for Updates in Plugin:**
+- Automatically integrated with GitHub releases
+- Caching: 24 hours
+- User notifications via content script messages
+
+📚 Full documentation: [docs/VERSION_MANAGEMENT.md](./docs/VERSION_MANAGEMENT.md)
+
+Quick start: [docs/VERSIONING_QUICKSTART.md](./docs/VERSIONING_QUICKSTART.md)
+
+Implementation details: [docs/IMPLEMENTATION_SUMMARY.md](./docs/IMPLEMENTATION_SUMMARY.md)
+
+**Files:**
+- `VERSION.json` — Base version (major.minor)
+- `scripts/version.js` — Version generation script
+- `src/core/version.ts` — Auto-generated version constants
+- `src/core/version-checker.ts` — Update checker with GitHub API integration
+- `.github/workflows/release.yml` — Automatic release creation on VERSION.json changes
+
 ## Architecture Highlights
 
 - ✅ **No dependency on logs2** — Extension shipped separately from server
@@ -67,6 +104,7 @@ The workflow [.github/workflows/build-extension.yml](.github/workflows/build-ext
 - ✅ **Checksum validation** — Each downloaded phrase file is verified
 - ✅ **Fallback support** — Empty local patterns allow development without remote server
 - ✅ **TypeScript strict mode** — Full type safety across resource loader and recognizer
+- ✅ **Versioning system** — Semantic versioning with automatic patch generation and update checking
 
 ## Related Projects
 
