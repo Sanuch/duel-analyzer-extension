@@ -93,6 +93,7 @@ export function detectCondition(texts: string[]): DuelCondition {
 function analyzePlayerTexts(
   playerTexts: string[],
   patterns: CompiledPatterns,
+  lang: ResourceLang,
 ): {
   voiceResult?: VoiceResult;
   influenceResult?: InfluenceResult;
@@ -135,7 +136,7 @@ function analyzePlayerTexts(
   // Determine voice result
   let voiceResult: VoiceResult | undefined;
   if (voiceResponseText || voiceCommandFound) {
-    voiceResult = voiceResponseText ? classifyVoiceResult(voiceResponseText) : "NONE";
+    voiceResult = voiceResponseText ? classifyVoiceResult(voiceResponseText, lang) : "NONE";
   }
 
   // Step 3: In remaining texts, look for a direct influence action.
@@ -172,8 +173,8 @@ export function recognise(
   });
 
   // Analyze each player's texts independently (voice + influence per player)
-  const heroAnalysis = analyzePlayerTexts(step.myTexts, p);
-  const opptAnalysis = analyzePlayerTexts(step.oppTexts, p);
+  const heroAnalysis = analyzePlayerTexts(step.myTexts, p, lang);
+  const opptAnalysis = analyzePlayerTexts(step.oppTexts, p, lang);
 
   // Build synthetic events for voice/influence (used for power counter updates)
   if (heroAnalysis.voiceResult !== undefined) {

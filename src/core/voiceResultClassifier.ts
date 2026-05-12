@@ -1,29 +1,16 @@
-import voiceResource from "../resources-client/bundled/voice.json";
-import voiceResultGroupsResource from "../resources-client/bundled/voice-result-groups.json";
+import { getVoicePatternSources, getVoiceResultGroups } from "../resources-client/resourcesClient";
+import type { ResourceLang } from "../resources-client/types";
 import type { VoiceResult } from "./model";
 
 type VoiceResultWithPatterns = Exclude<VoiceResult, "NONE" | "UNKNOWN">;
 
-interface VoiceResourceShape {
-  data: {
-    patterns: string[];
-  };
-}
+export function classifyVoiceResult(text: string, lang: ResourceLang = "ru"): VoiceResult {
+  const voicePatterns = getVoicePatternSources(lang);
+  const groupsConfig = getVoiceResultGroups();
+  const compiledByResult = buildCompiledGroups(voicePatterns, groupsConfig.groups);
 
-interface VoiceResultGroupsShape {
-  data: {
-    resultOrder: VoiceResultWithPatterns[];
-    groups: Record<VoiceResultWithPatterns, number[][]>;
-  };
-}
-
-const voicePatterns = (voiceResource as VoiceResourceShape).data.patterns;
-const groupsConfig = (voiceResultGroupsResource as VoiceResultGroupsShape).data;
-
-const compiledByResult = buildCompiledGroups(voicePatterns, groupsConfig.groups);
-
-export function classifyVoiceResult(text: string): VoiceResult {
-  for (const result of groupsConfig.resultOrder) {
+  for (const resultRaw of groupsConfig.resultOrder) {
+    const result = resultRaw as VoiceResultWithPatterns;
     const patterns = compiledByResult[result] ?? [];
     if (patterns.some((pattern) => pattern.test(text))) {
       return result;

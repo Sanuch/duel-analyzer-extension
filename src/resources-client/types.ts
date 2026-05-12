@@ -11,6 +11,7 @@ export type ResourceType =
   | "miracle"
   | "voice"
   | "conditions"
+  | "voice-result-groups"
   | "selectors"
   | "thresholds";
 
@@ -49,6 +50,12 @@ export interface ThresholdsData {
   [key: string]: number;
 }
 
+/** `data` shape for voice result grouping config. */
+export interface VoiceResultGroupsData {
+  resultOrder: string[];
+  groups: Record<string, number[][]>;
+}
+
 /** Single entry in the remote resource manifest. */
 export interface ManifestEntry {
   lang: ResourceLang;
@@ -77,6 +84,8 @@ export interface CompiledPatterns {
 /** The resolved view of all resources the rest of the app consumes. */
 export interface ResolvedResources {
   patterns: Record<ResourceLang, CompiledPatterns>;
+  voicePatternSources: Record<ResourceLang, string[]>;
+  voiceResultGroups: VoiceResultGroupsData;
   selectors: SelectorsData;
   thresholds: ThresholdsData;
 }

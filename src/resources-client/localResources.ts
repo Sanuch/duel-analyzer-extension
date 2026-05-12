@@ -1,41 +1,31 @@
-import conditionsResource from "./bundled/conditions.json";
-import influenceResource from "./bundled/influence.json";
-import miracleResource from "./bundled/miracle.json";
-import voiceResource from "./bundled/voice.json";
-import type { PatternData, ResourceFile, ResolvedResources } from "./types";
-
-type PatternResource = ResourceFile<PatternData>;
-
-function compilePatternResource(resource: PatternResource): RegExp[] {
-  return resource.data.patterns.map((pattern) => new RegExp(pattern, "i"));
-}
-
-const LOCAL_RU_PATTERNS = {
-  voice: compilePatternResource(voiceResource as PatternResource),
-  influence: compilePatternResource(influenceResource as PatternResource),
-  miracle: compilePatternResource(miracleResource as PatternResource),
-  conditions: compilePatternResource(conditionsResource as PatternResource),
-};
+import type { ResolvedResources } from "./types";
 
 /**
- * Bundled fallback used before remote resources are loaded via VITE_PHRASES_MANIFEST_URL.
- * Remote cache may override these patterns, but the extension must work after
- * local builds even when the external manifest URL is not configured.
+ * Minimal fallback used when remote resources are unavailable.
+ * Phrase dictionaries are intentionally not bundled into the extension.
  */
 export const LOCAL_FALLBACK: ResolvedResources = {
   patterns: {
     ru: {
-      voice: [...LOCAL_RU_PATTERNS.voice],
-      influence: [...LOCAL_RU_PATTERNS.influence],
-      miracle: [...LOCAL_RU_PATTERNS.miracle],
-      conditions: [...LOCAL_RU_PATTERNS.conditions],
+      voice: [],
+      influence: [],
+      miracle: [],
+      conditions: [],
     },
     en: {
-      voice: [...LOCAL_RU_PATTERNS.voice],
-      influence: [...LOCAL_RU_PATTERNS.influence],
-      miracle: [...LOCAL_RU_PATTERNS.miracle],
-      conditions: [...LOCAL_RU_PATTERNS.conditions],
+      voice: [],
+      influence: [],
+      miracle: [],
+      conditions: [],
     },
+  },
+  voicePatternSources: {
+    ru: [],
+    en: [],
+  },
+  voiceResultGroups: {
+    resultOrder: [],
+    groups: {},
   },
   selectors: {
     stepContainer: "#last_items_arena .d_content",
