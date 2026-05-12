@@ -21,7 +21,18 @@ export async function fetchManifest(url: string): Promise<ResourceManifest> {
     throw new Error(`Manifest fetch failed: ${response.status} ${response.statusText}`);
   }
   const json: unknown = await response.json();
-  return validateManifest(json);
+  const manifest = validateManifest(json);
+  return resolveManifestUrls(manifest, url);
+}
+
+function resolveManifestUrls(manifest: ResourceManifest, manifestUrl: string): ResourceManifest {
+  return {
+    ...manifest,
+    files: manifest.files.map((entry) => ({
+      ...entry,
+      url: new URL(entry.url, manifestUrl).toString(),
+    })),
+  };
 }
 
 function validateManifest(raw: unknown): ResourceManifest {
