@@ -26,7 +26,7 @@ export interface ResourceMeta {
 export interface ResourceFile<T> {
   schemaVersion: string;
   dataVersion: string;
-  /** SHA-256 hex digest of the raw response body, optionally prefixed with "sha256:". */
+  /** SHA-256 hex digest of canonical JSON for data payload, optionally prefixed with "sha256:". */
   checksum: string;
   meta: ResourceMeta;
   data: T;
@@ -54,7 +54,7 @@ export interface ManifestEntry {
   lang: ResourceLang;
   type: ResourceType;
   dataVersion: string;
-  /** SHA-256 hex digest, optionally prefixed with "sha256:". */
+  /** SHA-256 hex digest of canonical JSON for data payload, optionally prefixed with "sha256:". */
   checksum: string;
   url: string;
 }

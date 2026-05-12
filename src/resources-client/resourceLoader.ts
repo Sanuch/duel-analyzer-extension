@@ -75,8 +75,11 @@ async function fetchAndCacheEntry(entry: ManifestEntry): Promise<void> {
   }
 
   const bodyText = await response.text();
+  const json: unknown = JSON.parse(bodyText);
+  const file = validateResourceFile(json, entry.lang, entry.type);
 
-  const actualChecksum = await computeSha256Hex(bodyText);
+  const canonicalDataJson = JSON.stringify(file.data);
+  const actualChecksum = await computeSha256Hex(canonicalDataJson);
   const expectedChecksum = entry.checksum.startsWith("sha256:")
     ? entry.checksum.slice(7)
     : entry.checksum;
@@ -88,8 +91,6 @@ async function fetchAndCacheEntry(entry: ManifestEntry): Promise<void> {
     );
   }
 
-  const json: unknown = JSON.parse(bodyText);
-  const file = validateResourceFile(json, entry.lang, entry.type);
   await writeToCache(file);
 }
 
