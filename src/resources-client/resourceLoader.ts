@@ -136,11 +136,15 @@ function validateResourceFile(
     );
   }
 
-  const metaRecord = file.meta as Record<string, unknown>;
+  const rawMeta = (raw as { meta?: unknown }).meta;
+  const metaRecord =
+    typeof rawMeta === "object" && rawMeta !== null
+      ? (rawMeta as { lang?: unknown; type?: unknown })
+      : {};
   const actualLang =
-    typeof metaRecord["lang"] === "string" ? (metaRecord["lang"] as ResourceLang) : expectedLang;
+    typeof metaRecord.lang === "string" ? (metaRecord.lang as ResourceLang) : expectedLang;
   const actualType =
-    typeof metaRecord["type"] === "string" ? (metaRecord["type"] as ResourceType) : "";
+    typeof metaRecord.type === "string" ? (metaRecord.type as ResourceType) : "";
 
   if (actualLang !== expectedLang || actualType !== expectedType) {
     throw new Error(
