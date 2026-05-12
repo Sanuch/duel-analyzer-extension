@@ -8,16 +8,16 @@ import type { ResolvedResources } from "./types";
 export const LOCAL_FALLBACK: ResolvedResources = {
   patterns: {
     ru: {
-      voice: [/\b(молв|говор|шепч|произнос)/i],
-      influence: [/\b(влияни|атак|удар|исцел|лечит)/i],
-      miracle: [/\b(чудо|чуд)/i],
-      conditions: [/\b(если|услов|провер)/i],
+      voice: [],
+      influence: [],
+      miracle: [],
+      conditions: [],
     },
     en: {
-      voice: [/\b(voice|pray|whisper|utter)/i],
-      influence: [/\b(influence|attack|heal|strike)/i],
-      miracle: [/\b(miracle)/i],
-      conditions: [/\b(if|condition|check)/i],
+      voice: [],
+      influence: [],
+      miracle: [],
+      conditions: [],
     },
   },
   selectors: {

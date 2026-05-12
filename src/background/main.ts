@@ -6,7 +6,7 @@ import { refreshResources } from "../resources-client/resourcesClient";
  * Empty string disables remote fetching (development / no-server mode).
  * Replace with the actual URL when the server is available.
  */
-const RESOURCES_MANIFEST_URL = "";
+const PHRASES_MANIFEST_URL = import.meta.env.VITE_PHRASES_MANIFEST_URL ?? "";
 
 const REFRESH_ALARM = "da-resources-refresh";
 /** Refresh interval in minutes (60 min = once per hour). */
@@ -15,11 +15,11 @@ const REFRESH_INTERVAL_MINUTES = 60;
 // ─── Resource refresh helpers ─────────────────────────────────────────────────
 
 async function triggerRefresh(): Promise<void> {
-  if (!RESOURCES_MANIFEST_URL) {
+  if (!PHRASES_MANIFEST_URL) {
     return;
   }
   try {
-    await refreshResources(RESOURCES_MANIFEST_URL);
+    await refreshResources(PHRASES_MANIFEST_URL);
   } catch (err) {
     console.warn("[duel-analyzer] resource refresh failed:", err);
   }

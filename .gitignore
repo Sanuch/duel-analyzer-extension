@@ -2,3 +2,9 @@ node_modules/
 dist/
 .DS_Store
 *.log
+AGENTS.md
+battle-response-structure.md
+implementation-plan.md
+task-description*.md
+var
+.project

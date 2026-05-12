@@ -5,7 +5,7 @@ export function extractStep(node: Node, fallbackNumber: number): RawStep | null 
     return null;
   }
 
-  const stepNumberFromAttr = Number(node.getAttribute("data-step"));
+  const stepNumberFromAttr = Number(node.getAttribute("data-step") ?? node.getAttribute("data-t"));
   const number = Number.isFinite(stepNumberFromAttr) && stepNumberFromAttr > 0
     ? stepNumberFromAttr
     : fallbackNumber;

@@ -9,6 +9,14 @@ interface StoredHistoryEntry {
   snapshot: BattleState;
 }
 
+export async function loadLastBattleSnapshot(): Promise<BattleState | null> {
+  const state = await browser.storage.local.get(HISTORY_KEY);
+  const current: StoredHistoryEntry[] = Array.isArray(state[HISTORY_KEY]) ? state[HISTORY_KEY] : [];
+  if (current.length === 0) return null;
+  // Берём последний сохранённый снапшот
+  return current[current.length - 1].snapshot;
+}
+
 export async function saveBattleSnapshot(snapshot: BattleState): Promise<void> {
   const state = await browser.storage.local.get(HISTORY_KEY);
   const current: StoredHistoryEntry[] = Array.isArray(state[HISTORY_KEY]) ? state[HISTORY_KEY] : [];

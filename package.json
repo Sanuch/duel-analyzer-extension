@@ -1,12 +1,12 @@
 {
-  "name": "duel-analyzer-resources",
+  "name": "duel-analyzer-extension",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build && cp manifests/manifest.chromium.json dist/manifest.json",
-    "typecheck": "tsc --noEmit",
+    "dev": "node ./node_modules/vite/bin/vite.js build --watch",
+    "build": "node ./node_modules/vite/bin/vite.js build && cp manifests/manifest.chromium.json dist/manifest.json",
+    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
     "test": "echo \"No tests yet\""
   },
   "keywords": [],

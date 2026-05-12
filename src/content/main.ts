@@ -1,15 +1,35 @@
-import { applyEvents } from "../core/calculator";
+import { applyConfig, applyEvents } from "../core/calculator";
 import { extractStep } from "../core/extractor";
 import { createInitialState } from "../core/model";
-import { recognise } from "../core/recogniser";
-import { saveBattleSnapshot } from "../integrations/historyStorage";
+import { detectCondition, recognise } from "../core/recogniser";
+import {
+  buildUnknownPhraseItems,
+  createUnknownPhraseReporter,
+} from "../integrations/unknownPhraseReporter";
 import { getSelectors, initResources } from "../resources-client/resourcesClient";
 import { render } from "../ui/overlay";
 
-const state = createInitialState();
+
+let state = createInitialState();
+const unknownPhraseReporter = createUnknownPhraseReporter();
+const PHRASES_MANIFEST_URL = import.meta.env.VITE_PHRASES_MANIFEST_URL ?? "";
+
+function isLiveDuelMode(): boolean {
+  const url = new URL(window.location.href);
+  const isDuelLog = /\/duels\/log\//.test(url.pathname);
+  return isDuelLog && url.searchParams.get("u") === "1";
+}
 
 async function bootstrap(): Promise<void> {
-  await initResources();
+  if (!isLiveDuelMode()) {
+    return;
+  }
+
+  await initResources(PHRASES_MANIFEST_URL);
+
+  // В live-режиме страница полностью перезагружается, поэтому
+  // пересчитываем состояние заново из текущего DOM.
+  state = createInitialState();
 
   const selectors = getSelectors();
   const container = document.querySelector(selectors.stepContainer);
@@ -20,12 +40,16 @@ async function bootstrap(): Promise<void> {
   const knownNodes = new WeakSet<Node>();
   let sequence = 0;
 
-  // Process existing steps once on startup.
+  // Process existing steps once on startup, пропуская уже обработанные
   for (const node of Array.from(container.querySelectorAll(selectors.stepItem))) {
     if (!knownNodes.has(node)) {
       sequence += 1;
-      await processStepNode(node, sequence);
-      knownNodes.add(node);
+      // extractStep даст номер шага, сравниваем с state.currentStep
+      const rawStep = extractStep(node, sequence);
+      if (rawStep && rawStep.number > state.currentStep) {
+        await processStepNode(node, sequence);
+        knownNodes.add(node);
+      }
     }
   }
 
@@ -37,8 +61,11 @@ async function bootstrap(): Promise<void> {
         }
 
         sequence += 1;
-        await processStepNode(node, sequence);
-        knownNodes.add(node);
+        const rawStep = extractStep(node, sequence);
+        if (rawStep && rawStep.number > state.currentStep) {
+          await processStepNode(node, sequence);
+          knownNodes.add(node);
+        }
       }
     }
   });
@@ -57,10 +84,25 @@ async function processStepNode(node: Node, fallbackNumber: number): Promise<void
     return;
   }
 
-  const events = recognise(rawStep);
-  applyEvents(state, rawStep, events);
+  const recognised = recognise(rawStep);
+
+  if (recognised.unknownPhrases.length > 0) {
+    const items = buildUnknownPhraseItems({
+      phrases: recognised.unknownPhrases,
+      stepNumber: rawStep.number,
+      lang: "ru",
+    });
+    await unknownPhraseReporter.report(items);
+  }
+
+  // Detect duel condition from early steps (condition text appears in step 1-3)
+  if (rawStep.number <= 3 && state.config.condition === "DEFAULT") {
+    const condition = detectCondition(rawStep.texts);
+    applyConfig(state, condition);
+  }
+
+  applyEvents(state, rawStep, recognised);
   render(state);
-  await saveBattleSnapshot(state);
 }
 
 void bootstrap();

@@ -23,10 +23,15 @@ let resolvedResources: ResolvedResources | null = null;
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Loads resources from storage.local cache (or falls back to local defaults).
- * Must be called once on extension startup before the first recognise() call.
+ * Loads resources from storage.local cache and optionally refreshes them from
+ * a remote manifest before the first recognise() call.
  */
-export async function initResources(): Promise<void> {
+export async function initResources(manifestUrl = ""): Promise<void> {
+  if (manifestUrl) {
+    const manifest = await fetchManifest(manifestUrl);
+    await loadChangedResources(manifest);
+  }
+
   resolvedResources = await buildResolvedResources();
 }
 
@@ -38,13 +43,7 @@ export async function initResources(): Promise<void> {
  * live server while keeping the same code path.
  */
 export async function refreshResources(manifestUrl: string): Promise<void> {
-  if (!manifestUrl) {
-    return;
-  }
-
-  const manifest = await fetchManifest(manifestUrl);
-  await loadChangedResources(manifest);
-  resolvedResources = await buildResolvedResources();
+  await initResources(manifestUrl);
 }
 
 export function getPatterns(lang: ResourceLang): CompiledPatterns {
@@ -69,13 +68,13 @@ async function buildResolvedResources(): Promise<ResolvedResources> {
     en: cloneFallbackPatterns("en"),
   };
 
-  // Overlay cached patterns on top of local defaults for each lang × type.
-  for (const lang of langs) {
-    for (const type of PATTERN_TYPES) {
-      const cached = await readCached<PatternData>(lang, type);
-      if (cached) {
-        patterns[lang][type] = cached.data.patterns.map((p) => new RegExp(p, "i"));
-      }
+  // Phrase types are language-agnostic; load once and share across all langs.
+  for (const type of PATTERN_TYPES) {
+    const cached = await readCached<PatternData>("ru", type);
+    if (cached) {
+      const compiled = cached.data.patterns.map((p) => new RegExp(p, "i"));
+      patterns.ru[type] = compiled;
+      patterns.en[type] = compiled;
     }
   }
 

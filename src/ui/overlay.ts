@@ -1,35 +1,48 @@
-import type { BattleState } from "../core/model";
+import { getInfluenceBlockStats, getVoiceBlockStats } from "../core/calculator";
+import type { BattleState, PlayerState } from "../core/model";
 
-const ROOT_ID = "duel-analyzer-overlay";
+const ROOT_ID = "duel-analyzer-live-panel";
 const STYLE_ID = "duel-analyzer-style";
+
+function formatPlayerBlocks(player: PlayerState, config: BattleState["config"]): string {
+  const v = getVoiceBlockStats(player.voiceActions, config.voiceBlock);
+  const i = getInfluenceBlockStats(player.influenceActions, config.influenceBlock, player.availableInfluences);
+
+  const influencePart = `influence ${i.total}/${i.blockSize}, bad=${i.bad > 0 ? "yes" : "no"}`;
+  const voicePart = config.voiceBlock === 0
+    ? "voice disabled (DEAFENING)"
+    : `voice thrown=${v.total}, passed=${v.good}`;
+
+  return `${influencePart}; ${voicePart}`;
+}
 
 export function render(state: BattleState): void {
   ensureStyle();
 
-  let root = document.getElementById(ROOT_ID);
-  if (!root) {
-    root = document.createElement("aside");
-    root.id = ROOT_ID;
-    document.body.append(root);
+  const appBar = document.getElementById("app_bar");
+  if (!appBar || !appBar.parentElement) {
+    return;
   }
 
-  const recentSteps = state.steps
-    .slice()
-    .reverse()
-    .map((item) => `<li>#${item.number} H:${item.heroAction} | O:${item.opptAction}</li>`)
-    .join("");
+  let root = document.getElementById(ROOT_ID) as HTMLElement | null;
+  if (!root) {
+    root = document.createElement("section");
+    root.id = ROOT_ID;
+    appBar.insertAdjacentElement("afterend", root);
+  }
+
+  const conditionLabel = state.config.condition !== "DEFAULT"
+    ? `<div class="da-condition">${state.config.condition}</div>`
+    : `<div class="da-condition">DEFAULT</div>`;
 
   root.innerHTML = `
     <div class="da-card">
-      <h3>Duel Analyzer</h3>
-      <div class="da-grid">
-        <div><strong>Hero HP:</strong> ${state.hero.health}</div>
-        <div><strong>Oppt HP:</strong> ${state.oppt.health}</div>
-        <div><strong>Hero Power:</strong> ${state.hero.powerCounter}</div>
-        <div><strong>Oppt Power:</strong> ${state.oppt.powerCounter}</div>
+      <h3>Duel Analyzer Live</h3>
+      ${conditionLabel}
+      <div class="da-blocks">
+        <div><strong>Hero</strong>: ${formatPlayerBlocks(state.hero, state.config)}</div>
+        <div><strong>Oppt</strong>: ${formatPlayerBlocks(state.oppt, state.config)}</div>
       </div>
-      <div><strong>Last 5 steps</strong></div>
-      <ol>${recentSteps}</ol>
     </div>
   `;
 }
@@ -42,49 +55,39 @@ function ensureStyle(): void {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    #duel-analyzer-overlay {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      z-index: 99999;
+    #duel-analyzer-live-panel {
+      margin: 8px 0 10px;
       font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif;
-      width: min(320px, calc(100vw - 32px));
+      width: 100%;
     }
 
-    #duel-analyzer-overlay .da-card {
-      background: rgba(13, 17, 28, 0.93);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
-      color: #f5f6fa;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-      padding: 12px;
+    #duel-analyzer-live-panel .da-card {
+      background: #f8fbff;
+      border: 1px solid #c9d8e8;
+      border-radius: 6px;
+      color: #1e2b3a;
+      padding: 8px 10px;
     }
 
-    #duel-analyzer-overlay h3 {
-      margin: 0 0 8px;
-      font-size: 14px;
-      letter-spacing: 0.04em;
+    #duel-analyzer-live-panel h3 {
+      margin: 0 0 4px;
+      font-size: 13px;
+      letter-spacing: 0.03em;
       text-transform: uppercase;
     }
 
-    #duel-analyzer-overlay .da-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-      margin-bottom: 10px;
-      font-size: 13px;
-    }
-
-    #duel-analyzer-overlay ol {
-      margin: 8px 0 0;
-      padding-inline-start: 18px;
-      max-height: 160px;
-      overflow: auto;
+    #duel-analyzer-live-panel .da-blocks {
       font-size: 12px;
+      line-height: 1.7;
+      font-family: monospace;
     }
 
-    #duel-analyzer-overlay li {
-      margin: 0 0 4px;
+    #duel-analyzer-live-panel .da-condition {
+      font-size: 11px;
+      color: #7a4d00;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
   `;
 
