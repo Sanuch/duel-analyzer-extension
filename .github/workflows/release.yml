@@ -40,12 +40,12 @@ jobs:
           VITE_PHRASES_MANIFEST_URL: ${{ vars.VITE_PHRASES_MANIFEST_URL }}
         run: |
           npm run build:chromium
-          zip -r duel-analyzer-chromium-${{ steps.version.outputs.version }}.zip dist -x "dist/.git*" "dist/node_modules/*"
+          zip -r analyzer-chromium-${{ steps.version.outputs.version }}.zip dist -x "dist/.git*" "dist/node_modules/*"
           
           # Clean dist for Firefox build
           rm -rf dist
           npm run build:firefox
-          zip -r duel-analyzer-firefox-${{ steps.version.outputs.version }}.zip dist -x "dist/.git*" "dist/node_modules/*"
+          zip -r analyzer-firefox-${{ steps.version.outputs.version }}.zip dist -x "dist/.git*" "dist/node_modules/*"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -53,8 +53,8 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
           files: |
-            duel-analyzer-chromium-${{ steps.version.outputs.version }}.zip
-            duel-analyzer-firefox-${{ steps.version.outputs.version }}.zip
+            analyzer-chromium-${{ steps.version.outputs.version }}.zip
+            analyzer-firefox-${{ steps.version.outputs.version }}.zip
           draft: false
           prerelease: false
         env:
