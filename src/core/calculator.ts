@@ -13,6 +13,20 @@ export function applyConfig(state: BattleState, condition: DuelCondition): void 
     state.config.startInfluences = 2;
     state.hero.availableInfluences = 2;
     state.oppt.availableInfluences = 2;
+  } else if (condition === "TOGETHER") {
+    // Fight is twice as fast (no mechanical change in UI, just informational)
+  } else if (condition === "CRAZY_SQUIRRELS") {
+    // Crazy squirrels cause damage (no mechanical change in UI, just informational)
+  } else if (condition === "LIMIT_UNPACK") {
+    // Unpack limit to 3 charges (no mechanical change in UI, just informational)
+  } else if (condition === "PRAYING") {
+    // Can restore godpower by praying (no mechanical change in UI, just informational)
+  } else if (condition === "BRICKS") {
+    // Extra bricks reward (no mechanical change in UI, just informational)
+  } else if (condition === "RESOURCE") {
+    // Extra resource reward (no mechanical change in UI, just informational)
+  } else if (condition === "EXTRA_GOLD") {
+    // Extra gold prize (no mechanical change in UI, just informational)
   }
 }
 
@@ -21,36 +35,49 @@ export function applyConfig(state: BattleState, condition: DuelCondition): void 
 export function applyEvents(state: BattleState, step: RawStep, envelope: ResultEnvelope): BattleState {
   const owner = resolveStepOwner(step.number);
   const actor = owner === "HERO" ? state.hero : state.oppt;
-  const opponent = owner === "HERO" ? state.oppt : state.hero;
-  const { events, voiceResult, influenceResult } = envelope;
+  const { events } = envelope;
 
   actor.lastAction = eventLabel(events[0]?.type ?? "UNKNOWN");
 
+  // Power counter and availability updates are based on each player's own events
   for (const event of events) {
-    if (event.type === "VOICE") {
-      actor.powerCounter += 5;
+    if (event.type === "VOICE" && event.text === "hero_voice") {
+      state.hero.powerCounter += 5;
     }
-
-    if (event.type === "INFLUENCE") {
-      actor.powerCounter += 25;
-      actor.availableInfluences = Math.max(0, actor.availableInfluences - 1);
-      opponent.availableInfluences += 1;
+    if (event.type === "VOICE" && event.text === "oppt_voice") {
+      state.oppt.powerCounter += 5;
     }
-
+    if (event.type === "INFLUENCE" && event.text === "hero_influence") {
+      state.hero.powerCounter += 25;
+      state.hero.availableInfluences = Math.max(0, state.hero.availableInfluences - 1);
+      state.oppt.availableInfluences += 1;
+    }
+    if (event.type === "INFLUENCE" && event.text === "oppt_influence") {
+      state.oppt.powerCounter += 25;
+      state.oppt.availableInfluences = Math.max(0, state.oppt.availableInfluences - 1);
+      state.hero.availableInfluences += 1;
+    }
     if (event.type === "MIRACLE") {
       actor.powerCounter += 50;
       actor.miracles += 1;
       actor.availableInfluences = Math.max(0, actor.availableInfluences - 1);
+      const opponent = owner === "HERO" ? state.oppt : state.hero;
       opponent.availableInfluences += 1;
     }
   }
 
-  if (voiceResult !== undefined) {
-    actor.voiceActions.push(voiceResult);
+  // Voice and influence action tracking — per player, independent of step parity
+  if (envelope.hero.voiceResult !== undefined) {
+    state.hero.voiceActions.push(envelope.hero.voiceResult);
   }
-
-  if (influenceResult !== undefined) {
-    actor.influenceActions.push(influenceResult);
+  if (envelope.hero.influenceResult !== undefined) {
+    state.hero.influenceActions.push(envelope.hero.influenceResult);
+  }
+  if (envelope.oppt.voiceResult !== undefined) {
+    state.oppt.voiceActions.push(envelope.oppt.voiceResult);
+  }
+  if (envelope.oppt.influenceResult !== undefined) {
+    state.oppt.influenceActions.push(envelope.oppt.influenceResult);
   }
 
   if (step.hp) {
@@ -84,6 +111,7 @@ export interface VoiceBlockStats {
 export interface InfluenceBlockStats {
   total: number;
   bad: number;
+  badPositions: number[];
   blockSize: number;
   available: number;
 }
@@ -106,9 +134,17 @@ export function getInfluenceBlockStats(
 ): InfluenceBlockStats {
   const chunks = chunkArray(influenceActions, blockSize);
   const currentBlock = chunks.length > 0 ? chunks[chunks.length - 1] : [];
-  const bad = currentBlock.filter((r) => r === "BAD").length;
+  const badPositions = currentBlock
+    .map((result, index) => (result === "BAD" ? index + 1 : 0))
+    .filter((position) => position > 0);
 
-  return { total: currentBlock.length, bad, blockSize, available };
+  return {
+    total: currentBlock.length,
+    bad: badPositions.length,
+    badPositions,
+    blockSize,
+    available,
+  };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

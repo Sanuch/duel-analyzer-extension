@@ -53,7 +53,9 @@ Build output appears in `dist/` with `manifest.json` for Chromium-based browsers
 
 ## GitHub Actions CI/CD
 
-The workflow [.github/workflows/build-extension.yml](.github/workflows/build-extension.yml) builds and publishes the extension on every push to `main`.
+The workflow [.github/workflows/build-extension.yml](.github/workflows/build-extension.yml) builds the extension on every push to `main` for:
+- `chromium` target (Chrome, Edge, Opera)
+- `firefox` target
 
 **Required Repository Variable:**
 - `VITE_PHRASES_MANIFEST_URL` — URL to the phrases repository manifest (set in repository settings under Variables)
@@ -72,6 +74,6 @@ The workflow [.github/workflows/build-extension.yml](.github/workflows/build-ext
 - logs2 — Development-only reference (not shipped with extension)
 
 1. Current selectors are local placeholders; phrase patterns are now loaded from the external `phrases` manifest via `VITE_PHRASES_MANIFEST_URL`.
-2. Firefox/Safari manifests and packaging are planned for stage 5.
+2. Safari packaging is out of scope for current requirements.
 3. Duel start tracking must rely on AJAX responses (arena status flags and arena log fields), not on page-only DOM heuristics.
 4. DOM observers are used as a rendering/update mechanism after fight activity is confirmed by AJAX signals.

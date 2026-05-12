@@ -1,7 +1,7 @@
 export type EventType = "VOICE" | "INFLUENCE" | "MIRACLE" | "UNKNOWN";
 export type VoiceResult = "TRIGGERED" | "NONE";
 export type InfluenceResult = "REAL" | "BAD";
-export type DuelCondition = "DEFAULT" | "DEAFENING" | "ANTIDOME" | "LIMIT_INFLUENCE";
+export type DuelCondition = "DEFAULT" | "DEAFENING" | "ANTIDOME" | "LIMIT_INFLUENCE" | "TOGETHER" | "CRAZY_SQUIRRELS" | "LIMIT_UNPACK" | "PRAYING" | "BRICKS" | "RESOURCE" | "EXTRA_GOLD";
 
 export interface StepEvent {
   type: EventType;
@@ -10,16 +10,27 @@ export interface StepEvent {
   influenceResult?: InfluenceResult;
 }
 
+export interface PlayerResult {
+  voiceResult?: VoiceResult;
+  influenceResult?: InfluenceResult;
+  influenceText?: string;
+}
+
 export interface ResultEnvelope {
   events: StepEvent[];
   unknownPhrases: string[];
-  voiceResult?: VoiceResult;
-  influenceResult?: InfluenceResult;
+  hero: PlayerResult;
+  oppt: PlayerResult;
 }
 
 export interface RawStep {
   number: number;
+  /** All texts from all divs combined. */
   texts: string[];
+  /** Texts from divs with class="infl" (hero's voice/influence actions). */
+  myTexts: string[];
+  /** Texts from divs with class="opp_infl" (opponent's voice/influence actions). */
+  oppTexts: string[];
   hp?: {
     hero: number;
     oppt: number;

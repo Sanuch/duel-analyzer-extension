@@ -4,21 +4,23 @@ import { defineConfig } from "vite";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig({
-  build: {
-    outDir: "dist",
-    emptyOutDir: true,
-    sourcemap: true,
-    rollupOptions: {
-      input: {
-        content: resolve(__dirname, "src/content/main.ts"),
-        background: resolve(__dirname, "src/background/main.ts")
+export default defineConfig(({ mode }) => {
+  const target = mode === "background" ? "background" : "content";
+
+  return {
+    build: {
+      outDir: "dist",
+      emptyOutDir: target === "content",
+      sourcemap: true,
+      rollupOptions: {
+        input: resolve(__dirname, target === "content" ? "src/content/main.ts" : "src/background/main.ts"),
+        output: {
+          format: "iife",
+          entryFileNames: target === "content" ? "content.js" : "background.js",
+          inlineDynamicImports: true,
+          assetFileNames: "assets/[name]-[hash][extname]",
+        },
       },
-      output: {
-        entryFileNames: "[name].js",
-        chunkFileNames: "chunks/[name]-[hash].js",
-        assetFileNames: "assets/[name]-[hash][extname]"
-      }
-    }
-  }
+    },
+  };
 });

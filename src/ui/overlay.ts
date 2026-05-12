@@ -1,25 +1,122 @@
 import { getInfluenceBlockStats, getVoiceBlockStats } from "../core/calculator";
 import type { BattleState, PlayerState } from "../core/model";
+import browser from "webextension-polyfill";
 
 const ROOT_ID = "duel-analyzer-live-panel";
 const STYLE_ID = "duel-analyzer-style";
+const UPLOAD_BTN_ID = "duel-analyzer-upload-btn";
+const UPLOAD_STATUS_ID = "duel-analyzer-upload-status";
 
-function formatPlayerBlocks(player: PlayerState, config: BattleState["config"]): string {
-  const v = getVoiceBlockStats(player.voiceActions, config.voiceBlock);
-  const i = getInfluenceBlockStats(player.influenceActions, config.influenceBlock, player.availableInfluences);
-
-  const influencePart = `influence ${i.total}/${i.blockSize}, bad=${i.bad > 0 ? "yes" : "no"}`;
-  const voicePart = config.voiceBlock === 0
-    ? "voice disabled (DEAFENING)"
-    : `voice thrown=${v.total}, passed=${v.good}`;
-
-  return `${influencePart}; ${voicePart}`;
+function isDuelLogPage(): boolean {
+  return /^\/duels\/log\/[^/]+$/i.test(window.location.pathname);
 }
 
-export function render(state: BattleState): void {
+function formatPlayerBlocks(player: PlayerState, config: BattleState["config"], stepNumber: number): string {
+  const v = getVoiceBlockStats(player.voiceActions, config.voiceBlock);
+  const i = getInfluenceBlockStats(player.influenceActions, config.influenceBlock, player.availableInfluences);
+  const health = formatHealthPercent(player.health, stepNumber, player.name);
+
+  const influenceSuffix = i.badPositions.length > 0 ? `(${i.badPositions.join(",")})` : "";
+  const influencePart = `влияния ${i.total}/${i.blockSize}${influenceSuffix}`;
+  const voicePart = config.voiceBlock === 0
+    ? "гласы 0/0"
+    : `гласы ${v.good}/${v.total}${v.extra > 0 ? `(${v.extra})` : ""}`;
+
+  return `${influencePart}; ${voicePart}; здоровье ${health}`;
+}
+
+function formatHealthPercent(_rawHealth: number, stepNumber: number, side: string): string {
+  const suffix = side === "HERO" ? "0" : "1";
+  const currentHealth = Number(document.getElementById(`hp${suffix}`)?.textContent ?? "");
+  const maxHealth = Number(document.getElementById(`hpm${suffix}`)?.textContent ?? "");
+  if (!Number.isFinite(currentHealth) || !Number.isFinite(maxHealth) || maxHealth <= 0) {
+    return "—";
+  }
+
+  const stepFactor = getStepCoefficient(stepNumber);
+  const percent = currentHealth / maxHealth * 100 / stepFactor;
+  return `${Math.max(0, percent).toFixed(1)}%`;
+}
+
+function getStepCoefficient(stepNumber: number): number {
+  return stepNumber <= 60 ? 1 : 1 + (stepNumber - 60) * 0.02;
+}
+
+async function fetchCleanLogHtml(): Promise<string> {
+  const response = await fetch(window.location.href, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Не удалось получить исходный лог (HTTP ${response.status})`);
+  }
+
+  const html = await response.text();
+  if (!html.trim()) {
+    throw new Error("Не удалось получить исходный лог");
+  }
+
+  return html;
+}
+
+async function uploadLog(): Promise<void> {
+  const btn = document.getElementById(UPLOAD_BTN_ID) as HTMLButtonElement | null;
+  const statusEl = document.getElementById(UPLOAD_STATUS_ID);
+  if (!btn || !statusEl) return;
+
+  btn.disabled = true;
+  statusEl.textContent = "Отправка...";
+  statusEl.className = "da-upload-status da-upload-pending";
+
+  try {
+    const html = await fetchCleanLogHtml();
+    const response = await browser.runtime.sendMessage({
+      type: "duel-analyzer.upload-log",
+      html,
+    });
+
+    if (response && typeof response === "object" && "ok" in response && response.ok) {
+      const data = ("data" in response ? response.data : null) as {
+        pending_id?: string;
+        confirm_url?: string;
+      } | null;
+      const confirmUrl = data?.confirm_url;
+      if (confirmUrl) {
+        statusEl.textContent = "✓ Лог получен, откройте страницу и пройдите captcha";
+        window.open(confirmUrl, "_blank", "noopener,noreferrer");
+      } else {
+        statusEl.textContent = "✓ Лог получен";
+      }
+      statusEl.className = "da-upload-status da-upload-ok";
+    } else {
+      const status = response && typeof response === "object" && "status" in response
+        ? String(response.status)
+        : "unknown";
+      const body = response && typeof response === "object" && "body" in response
+        ? String(response.body ?? "")
+        : "";
+        statusEl.textContent = toCompactUploadError(status, body);
+      statusEl.className = "da-upload-status da-upload-err";
+      btn.disabled = false;
+    }
+  } catch (err) {
+    const message = err instanceof Error && err.message
+      ? err.message
+      : "Сеть недоступна";
+    statusEl.textContent = `✗ ${message}`;
+    statusEl.className = "da-upload-status da-upload-err";
+    btn.disabled = false;
+  }
+}
+
+export function render(state: BattleState, battleOver = false): void {
   ensureStyle();
+  const canUpload = battleOver && isDuelLogPage();
 
   const appBar = document.getElementById("app_bar");
+  const centralBlock = document.getElementById("central_block");
   if (!appBar || !appBar.parentElement) {
     return;
   }
@@ -28,23 +125,49 @@ export function render(state: BattleState): void {
   if (!root) {
     root = document.createElement("section");
     root.id = ROOT_ID;
-    appBar.insertAdjacentElement("afterend", root);
+  }
+
+  const host = centralBlock ?? appBar.parentElement;
+  if (host.firstChild) {
+    host.insertBefore(root, host.firstChild);
+  } else {
+    host.appendChild(root);
   }
 
   const conditionLabel = state.config.condition !== "DEFAULT"
     ? `<div class="da-condition">${state.config.condition}</div>`
     : `<div class="da-condition">DEFAULT</div>`;
 
+  const uploadSection = canUpload ? `
+    <div class="da-upload">
+      <button id="${UPLOAD_BTN_ID}" class="da-upload-btn">↑ Отправить лог на сервер</button>
+      <span id="${UPLOAD_STATUS_ID}" class="da-upload-status"></span>
+    </div>
+  ` : battleOver ? `
+    <div class="da-upload">
+      <span id="${UPLOAD_STATUS_ID}" class="da-upload-status da-upload-pending">Отправка доступна только на странице лога дуэли</span>
+    </div>
+  ` : "";
+
   root.innerHTML = `
     <div class="da-card">
-      <h3>Duel Analyzer Live</h3>
-      ${conditionLabel}
-      <div class="da-blocks">
-        <div><strong>Hero</strong>: ${formatPlayerBlocks(state.hero, state.config)}</div>
-        <div><strong>Oppt</strong>: ${formatPlayerBlocks(state.oppt, state.config)}</div>
+      <div class="da-header">
+        <h3>Duel Analyzer Live</h3>
+        ${conditionLabel}
       </div>
+      <div class="da-blocks">
+        <div><strong>Hero</strong>: ${formatPlayerBlocks(state.hero, state.config, state.currentStep)}</div>
+        <div><strong>Oppt</strong>: ${formatPlayerBlocks(state.oppt, state.config, state.currentStep)}</div>
+      </div>
+      ${uploadSection}
     </div>
   `;
+
+  if (canUpload) {
+    document.getElementById(UPLOAD_BTN_ID)?.addEventListener("click", () => {
+      void uploadLog();
+    });
+  }
 }
 
 function ensureStyle(): void {
@@ -59,6 +182,7 @@ function ensureStyle(): void {
       margin: 8px 0 10px;
       font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif;
       width: 100%;
+      box-sizing: border-box;
     }
 
     #duel-analyzer-live-panel .da-card {
@@ -69,11 +193,20 @@ function ensureStyle(): void {
       padding: 8px 10px;
     }
 
-    #duel-analyzer-live-panel h3 {
+    #duel-analyzer-live-panel .da-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
       margin: 0 0 4px;
+    }
+
+    #duel-analyzer-live-panel h3 {
+      margin: 0;
       font-size: 13px;
       letter-spacing: 0.03em;
       text-transform: uppercase;
+      flex: 1 1 auto;
     }
 
     #duel-analyzer-live-panel .da-blocks {
@@ -85,11 +218,63 @@ function ensureStyle(): void {
     #duel-analyzer-live-panel .da-condition {
       font-size: 11px;
       color: #7a4d00;
-      margin-bottom: 4px;
+      margin: 0;
       text-transform: uppercase;
       letter-spacing: 0.06em;
+      white-space: nowrap;
+      text-align: right;
+      flex: 0 0 auto;
     }
+
+    #duel-analyzer-live-panel .da-upload {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #duel-analyzer-live-panel .da-upload-btn {
+      font-size: 12px;
+      padding: 3px 10px;
+      border: 1px solid #6b9cce;
+      border-radius: 4px;
+      background: #e8f2fc;
+      color: #1a3a5c;
+      cursor: pointer;
+    }
+
+    #duel-analyzer-live-panel .da-upload-btn:hover:not(:disabled) {
+      background: #d0e8f8;
+    }
+
+    #duel-analyzer-live-panel .da-upload-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    #duel-analyzer-live-panel .da-upload-status {
+      font-size: 12px;
+    }
+
+    #duel-analyzer-live-panel .da-upload-pending { color: #666; }
+    #duel-analyzer-live-panel .da-upload-ok      { color: #2a7a2a; }
+    #duel-analyzer-live-panel .da-upload-err     { color: #b00020; }
   `;
 
   document.head.append(style);
 }
+  function toCompactUploadError(status: string, body: string): string {
+    if (status === "429") {
+      return "✗ Слишком много запросов. Попробуйте снова через минуту";
+    }
+
+    const trimmed = body.trim();
+    const looksLikeHtml = /^<!doctype html>|^<html[\s>]/i.test(trimmed);
+
+    if (!trimmed || looksLikeHtml) {
+      return `✗ Ошибка ${status}`;
+    }
+
+    const normalized = trimmed.replace(/\s+/g, " ").slice(0, 140);
+    return `✗ Ошибка ${status}: ${normalized}`;
+  }

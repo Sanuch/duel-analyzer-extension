@@ -28,5 +28,11 @@
   "background": {
     "service_worker": "background.js",
     "type": "module"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "duel-analyzer@example.com",
+      "strict_min_version": "121.0"
+    }
   }
 }

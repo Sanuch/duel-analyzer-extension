@@ -5,6 +5,7 @@ declare module "webextension-polyfill" {
 
 interface ImportMetaEnv {
   readonly VITE_PHRASES_MANIFEST_URL?: string;
+  readonly VITE_LOGS2_API_URL?: string;
 }
 
 interface ImportMeta {

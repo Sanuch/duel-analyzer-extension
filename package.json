@@ -4,8 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node ./node_modules/vite/bin/vite.js build --watch",
-    "build": "node ./node_modules/vite/bin/vite.js build && cp manifests/manifest.chromium.json dist/manifest.json",
+    "dev": "node ./node_modules/vite/bin/vite.js build --mode content --watch",
+    "build:content": "node ./node_modules/vite/bin/vite.js build --mode content",
+    "build:background": "node ./node_modules/vite/bin/vite.js build --mode background",
+    "build:base": "npm run build:content && npm run build:background && mkdir -p dist/icons && cp manifests/icons/icon*.png dist/icons/",
+    "build:chromium": "npm run build:base && cp manifests/manifest.chromium.json dist/manifest.json",
+    "build:firefox": "npm run build:base && cp manifests/manifest.firefox.json dist/manifest.json",
+    "build": "npm run build:chromium",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
     "test": "echo \"No tests yet\""
   },
