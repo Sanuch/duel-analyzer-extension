@@ -71,10 +71,10 @@ async function buildResolvedResources(): Promise<ResolvedResources> {
   // Phrase types are language-agnostic; load once and share across all langs.
   for (const type of PATTERN_TYPES) {
     const cached = await readCached<PatternData>("ru", type);
-    if (cached) {
+    if (cached && cached.data.patterns.length > 0) {
       const compiled = cached.data.patterns.map((p) => new RegExp(p, "i"));
-      patterns.ru[type] = compiled;
-      patterns.en[type] = compiled;
+      patterns.ru[type] = mergeCompiledPatterns(compiled, patterns.ru[type]);
+      patterns.en[type] = mergeCompiledPatterns(compiled, patterns.en[type]);
     }
   }
 
@@ -96,4 +96,18 @@ function cloneFallbackPatterns(lang: ResourceLang): CompiledPatterns {
     voice: [...fb.voice],
     conditions: [...fb.conditions],
   };
+}
+
+function mergeCompiledPatterns(primary: RegExp[], fallback: RegExp[]): RegExp[] {
+  const merged: RegExp[] = [];
+  const seen = new Set<string>();
+
+  for (const pattern of [...primary, ...fallback]) {
+    const key = `${pattern.source}/${pattern.flags}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(pattern);
+  }
+
+  return merged;
 }

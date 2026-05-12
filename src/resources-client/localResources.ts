@@ -1,22 +1,40 @@
-import type { ResolvedResources } from "./types";
+import conditionsResource from "../../../phrases/resources/conditions.json";
+import influenceResource from "../../../phrases/resources/influence.json";
+import miracleResource from "../../../phrases/resources/miracle.json";
+import voiceResource from "../../../phrases/resources/voice.json";
+import type { PatternData, ResourceFile, ResolvedResources } from "./types";
+
+type PatternResource = ResourceFile<PatternData>;
+
+function compilePatternResource(resource: PatternResource): RegExp[] {
+  return resource.data.patterns.map((pattern) => new RegExp(pattern, "i"));
+}
+
+const LOCAL_RU_PATTERNS = {
+  voice: compilePatternResource(voiceResource as PatternResource),
+  influence: compilePatternResource(influenceResource as PatternResource),
+  miracle: compilePatternResource(miracleResource as PatternResource),
+  conditions: compilePatternResource(conditionsResource as PatternResource),
+};
 
 /**
- * Empty fallback used before remote resources are loaded via VITE_PHRASES_MANIFEST_URL.
- * Patterns are populated once the background script fetches the remote manifest.
+ * Bundled fallback used before remote resources are loaded via VITE_PHRASES_MANIFEST_URL.
+ * Remote cache may override these patterns, but the extension must work after
+ * local builds even when the external manifest URL is not configured.
  */
 export const LOCAL_FALLBACK: ResolvedResources = {
   patterns: {
     ru: {
-      voice: [],
-      influence: [],
-      miracle: [],
-      conditions: [],
+      voice: [...LOCAL_RU_PATTERNS.voice],
+      influence: [...LOCAL_RU_PATTERNS.influence],
+      miracle: [...LOCAL_RU_PATTERNS.miracle],
+      conditions: [...LOCAL_RU_PATTERNS.conditions],
     },
     en: {
-      voice: [],
-      influence: [],
-      miracle: [],
-      conditions: [],
+      voice: [...LOCAL_RU_PATTERNS.voice],
+      influence: [...LOCAL_RU_PATTERNS.influence],
+      miracle: [...LOCAL_RU_PATTERNS.miracle],
+      conditions: [...LOCAL_RU_PATTERNS.conditions],
     },
   },
   selectors: {

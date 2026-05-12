@@ -1,6 +1,6 @@
 {
   "name": "duel-analyzer-extension",
-  "version": "1.0.3230",
+  "version": "1.0.6021",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,8 @@
     "build:firefox": "npm run build:base && cp manifests/manifest.firefox.json dist/manifest.json",
     "build": "npm run version:generate && npm run build:chromium",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
-    "test": "echo \"No tests yet\""
+    "test": "node --test",
+    "test:recogniser": "node --test tests/recogniser.step48.test.mjs"
   },
   "keywords": [],
   "author": "",

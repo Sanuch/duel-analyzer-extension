@@ -122,7 +122,7 @@ export function getVoiceBlockStats(voiceActions: VoiceResult[], blockSize: numbe
   const chunks = chunkArray(voiceActions, blockSize);
   const extra = chunks.reduce((acc, chunk) => acc + extraByChunk(chunk, blockSize), 0);
   const currentBlock = chunks.length > 0 ? chunks[chunks.length - 1] : [];
-  const good = currentBlock.filter((r) => r === "TRIGGERED").length;
+  const good = currentBlock.filter(isTriggeredVoiceResult).length;
 
   return { total: currentBlock.length, good, extra, blockSize };
 }
@@ -135,7 +135,7 @@ export function getInfluenceBlockStats(
   const chunks = chunkArray(influenceActions, blockSize);
   const currentBlock = chunks.length > 0 ? chunks[chunks.length - 1] : [];
   const badPositions = currentBlock
-    .map((result, index) => (result === "BAD" ? index + 1 : 0))
+    .map((result, index) => (isBackfireInfluence(result) ? index + 1 : 0))
     .filter((position) => position > 0);
 
   return {
@@ -149,6 +149,10 @@ export function getInfluenceBlockStats(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function isBackfireInfluence(result: InfluenceResult): boolean {
+  return result === "ANTI" || result === "EMPTY" || result === "MUTUAL";
+}
+
 function chunkArray<T>(arr: T[], size: number): T[][] {
   if (size === 0 || arr.length === 0) return [];
   const result: T[][] = [];
@@ -159,10 +163,14 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 }
 
 function extraByChunk(chunk: VoiceResult[], blockSize: number): number {
-  const good = chunk.filter((r) => r === "TRIGGERED").length;
+  const good = chunk.filter(isTriggeredVoiceResult).length;
   if (good > 3) return good - 3;
   if (good < 3 && chunk.length === blockSize) return -(3 - good);
   return 0;
+}
+
+function isTriggeredVoiceResult(result: VoiceResult): boolean {
+  return result !== "NONE" && result !== "UNKNOWN";
 }
 
 function resolveStepOwner(stepNumber: number): "HERO" | "OPPT" {

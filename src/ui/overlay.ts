@@ -84,8 +84,8 @@ async function uploadLog(): Promise<void> {
       } | null;
       const confirmUrl = data?.confirm_url;
       if (confirmUrl) {
-        statusEl.textContent = "✓ Лог получен, откройте страницу и пройдите captcha";
-        window.open(confirmUrl, "_blank", "noopener,noreferrer");
+        statusEl.textContent = "✓ Лог получен, пройдите captcha";
+        window.location.href = confirmUrl;
       } else {
         statusEl.textContent = "✓ Лог получен";
       }

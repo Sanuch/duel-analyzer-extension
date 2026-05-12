@@ -1,6 +1,6 @@
 export type EventType = "VOICE" | "INFLUENCE" | "MIRACLE" | "UNKNOWN";
-export type VoiceResult = "TRIGGERED" | "NONE";
-export type InfluenceResult = "REAL" | "BAD";
+export type VoiceResult = "ATTACK" | "HEAL" | "ROOT" | "SPILL" | "STINK" | "BLOCK" | "PRAY" | "MIXED" | "NONE" | "UNKNOWN";
+export type InfluenceResult = "ATTACK" | "HEAL" | "ANTI" | "EMPTY" | "MUTUAL";
 export type DuelCondition = "DEFAULT" | "DEAFENING" | "ANTIDOME" | "LIMIT_INFLUENCE" | "TOGETHER" | "CRAZY_SQUIRRELS" | "LIMIT_UNPACK" | "PRAYING" | "BRICKS" | "RESOURCE" | "EXTRA_GOLD";
 
 export interface StepEvent {
@@ -31,6 +31,7 @@ export interface RawStep {
   myTexts: string[];
   /** Texts from divs with class="opp_infl" (opponent's voice/influence actions). */
   oppTexts: string[];
+  neutralTexts: string[];
   hp?: {
     hero: number;
     oppt: number;

@@ -63,6 +63,7 @@ export function extractStepGroup(nodes: Node[], fallbackNumber: number): RawStep
   return {
     number,
     texts: allTexts,
+    neutralTexts,
     myTexts,
     oppTexts,
   };
