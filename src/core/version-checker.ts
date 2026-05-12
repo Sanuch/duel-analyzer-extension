@@ -1,6 +1,6 @@
 import { VERSION, VERSION_CHECK_URL } from './version';
 
-interface VersionInfo {
+export interface VersionInfo {
   current: string;
   latest: string;
   isOutdated: boolean;

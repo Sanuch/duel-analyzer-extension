@@ -4,6 +4,13 @@ import { versionChecker } from './version-checker';
 /**
  * Инициализирует проверку версии при запуске плагина
  */
+type ChromeApi = {
+  tabs?: {
+    query: (queryInfo: Record<string, never>, callback: (tabs: Array<{ id?: number }>) => void) => void;
+    sendMessage: (tabId: number, message: unknown, responseCallback?: () => void) => void;
+  };
+};
+
 export async function initializeVersionCheck(): Promise<void> {
   console.log(`🔌 Plugin loaded. Version: ${VERSION}`);
 
@@ -16,11 +23,12 @@ export async function initializeVersionCheck(): Promise<void> {
       );
 
       // Отправляем уведомление в content script
-      if (typeof chrome !== 'undefined' && chrome.tabs) {
-        chrome.tabs.query({}, (tabs) => {
+      const chromeApi = (globalThis as { chrome?: ChromeApi }).chrome;
+      if (chromeApi?.tabs) {
+        chromeApi.tabs.query({}, (tabs) => {
           tabs.forEach((tab) => {
             if (tab.id) {
-              chrome.tabs.sendMessage(
+              chromeApi.tabs?.sendMessage(
                 tab.id,
                 {
                   type: 'VERSION_UPDATE_AVAILABLE',
