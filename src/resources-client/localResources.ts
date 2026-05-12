@@ -1,7 +1,7 @@
-import conditionsResource from "../../../phrases/resources/conditions.json";
-import influenceResource from "../../../phrases/resources/influence.json";
-import miracleResource from "../../../phrases/resources/miracle.json";
-import voiceResource from "../../../phrases/resources/voice.json";
+import conditionsResource from "./bundled/conditions.json";
+import influenceResource from "./bundled/influence.json";
+import miracleResource from "./bundled/miracle.json";
+import voiceResource from "./bundled/voice.json";
 import type { PatternData, ResourceFile, ResolvedResources } from "./types";
 
 type PatternResource = ResourceFile<PatternData>;

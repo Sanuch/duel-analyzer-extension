@@ -1,5 +1,5 @@
-import voiceResource from "../../../phrases/resources/voice.json";
-import voiceResultGroupsResource from "../../../phrases/resources/voice-result-groups.json";
+import voiceResource from "../resources-client/bundled/voice.json";
+import voiceResultGroupsResource from "../resources-client/bundled/voice-result-groups.json";
 import type { VoiceResult } from "./model";
 
 type VoiceResultWithPatterns = Exclude<VoiceResult, "NONE" | "UNKNOWN">;

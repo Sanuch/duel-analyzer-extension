@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "dataVersion": "2026-05-12",
+  "checksum": "sha256:local-dev",
+  "meta": {
+    "lang": "ru",
+    "type": "voice-result-groups"
+  },
+  "data": {
+    "resultOrder": ["HEAL", "ATTACK", "BLOCK", "PRAY", "ROOT", "SPILL", "STINK", "MIXED"],
+    "groups": {
+      "ROOT": [[0, 4]],
+      "SPILL": [[4, 5]],
+      "STINK": [[5, 6]],
+      "BLOCK": [[6, 30]],
+      "HEAL": [[30, 55]],
+      "ATTACK": [[55, 76]],
+      "PRAY": [[76, 88]],
+      "MIXED": [[88, 101]]
+    }
+  }
+}

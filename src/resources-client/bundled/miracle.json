@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0",
+  "dataVersion": "2026-05-12",
+  "checksum": "sha256:0e17159f0c4c74a4b7da2f2173605d9ffce14bf11fc3bbaf8cced5692cfda15a",
+  "meta": {
+    "lang": "ru",
+    "type": "miracle"
+  },
+  "data": {
+    "patterns": [
+      "очки .* опыта перекачиваются",
+      "высасывает энергию бога-противника",
+      "как .* броня рв.тся и проминается",
+      "умудряется ударить два раза, ударить вне очереди, съесть лечебные корешки и помолиться одновременно",
+      ".* вдруг обнаружил.* себя отчаянно мотыляющ.* в воздухе вниз голово.",
+      "inspired .* celestial glow, .* managed to strike twice, eat some healing herbs and.* a quick prayer",
+      ".* suddenly felt .* armor breaking and sagging down on .* under invisible pressure",
+      ".* observes with horror .* valuable experience points are pumped into the enemy under the influence of higher forces",
+      ".* suddenly found .*self dangling upside down desperately in the air. .* trophies fell onto the ground and broke into pieces",
+      "thunder booms from somewhere in the sky. .* uses a red herring to leech godpower from .* enemy"
+    ]
+  }
+}
