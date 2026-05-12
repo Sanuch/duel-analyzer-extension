@@ -39,13 +39,19 @@ jobs:
         env:
           VITE_PHRASES_MANIFEST_URL: ${{ vars.VITE_PHRASES_MANIFEST_URL }}
         run: |
+          set -e
+          VERSION=${{ steps.version.outputs.version }}
+          echo "Building version: $VERSION"
+          
           npm run build:chromium
-          zip -r analyzer-chromium-${{ steps.version.outputs.version }}.zip dist -x "dist/.git*" "dist/node_modules/*"
+          zip -r analyzer-chromium-${VERSION}.zip dist -x "dist/.git*" "dist/node_modules/*"
+          ls -lah analyzer-chromium-${VERSION}.zip
           
           # Clean dist for Firefox build
           rm -rf dist
           npm run build:firefox
-          zip -r analyzer-firefox-${{ steps.version.outputs.version }}.zip dist -x "dist/.git*" "dist/node_modules/*"
+          zip -r analyzer-firefox-${VERSION}.zip dist -x "dist/.git*" "dist/node_modules/*"
+          ls -lah analyzer-firefox-${VERSION}.zip
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
