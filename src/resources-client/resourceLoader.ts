@@ -136,11 +136,27 @@ function validateResourceFile(
     );
   }
 
-  if (file.meta.lang !== expectedLang || file.meta.type !== expectedType) {
+  const metaRecord = file.meta as Record<string, unknown>;
+  const actualLang =
+    typeof metaRecord["lang"] === "string" ? (metaRecord["lang"] as ResourceLang) : expectedLang;
+  const actualType =
+    typeof metaRecord["type"] === "string" ? (metaRecord["type"] as ResourceType) : "";
+
+  if (actualLang !== expectedLang || actualType !== expectedType) {
     throw new Error(
       `Resource meta mismatch: expected ${expectedLang}/${expectedType}, ` +
-        `got ${file.meta.lang}/${file.meta.type}`,
+        `got ${actualLang}/${actualType}`,
     );
+  }
+
+  if (file.meta.lang !== actualLang || file.meta.type !== actualType) {
+    return {
+      ...file,
+      meta: {
+        lang: expectedLang,
+        type: expectedType,
+      },
+    };
   }
 
   return file;

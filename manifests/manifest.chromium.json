@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Duel Analyzer",
-  "version": "1.0.1591",
+  "version": "1.0.3230",
   "description": "Realtime duel analyzer overlay",
   "icons": {
     "16": "icons/icon16.png",
