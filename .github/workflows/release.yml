@@ -46,14 +46,24 @@ jobs:
           echo "Building version: $VERSION"
           
           npm run build:chromium
-          zip -r analyzer-chromium-${VERSION}.zip dist -x "dist/.git*" "dist/node_modules/*"
+          CHROMIUM_DIR="analyzer-chromium-${VERSION}"
+          rm -rf "$CHROMIUM_DIR"
+          mkdir -p "$CHROMIUM_DIR"
+          cp -R dist/* "$CHROMIUM_DIR"/
+          zip -r analyzer-chromium-${VERSION}.zip "$CHROMIUM_DIR"
           ls -lah analyzer-chromium-${VERSION}.zip
+          rm -rf "$CHROMIUM_DIR"
           
           # Clean dist for Firefox build
           rm -rf dist
           npm run build:firefox
-          zip -r analyzer-firefox-${VERSION}.zip dist -x "dist/.git*" "dist/node_modules/*"
+          FIREFOX_DIR="analyzer-firefox-${VERSION}"
+          rm -rf "$FIREFOX_DIR"
+          mkdir -p "$FIREFOX_DIR"
+          cp -R dist/* "$FIREFOX_DIR"/
+          zip -r analyzer-firefox-${VERSION}.zip "$FIREFOX_DIR"
           ls -lah analyzer-firefox-${VERSION}.zip
+          rm -rf "$FIREFOX_DIR"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
