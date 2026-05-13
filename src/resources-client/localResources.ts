@@ -23,10 +23,6 @@ export const LOCAL_FALLBACK: ResolvedResources = {
     ru: [],
     en: [],
   },
-  voiceResultGroups: {
-    resultOrder: [],
-    groups: {},
-  },
   selectors: {
     stepContainer: "#last_items_arena .d_content",
     stepItem: ".new_line.dtc",

@@ -7,7 +7,6 @@ import type {
   ResourceType,
   SelectorsData,
   ThresholdsData,
-  VoiceResultGroupsData,
 } from "./types";
 import { getCacheVersions, makeCacheKey, writeToCache } from "./resourceCache";
 
@@ -112,7 +111,7 @@ function validateResourceFile(
   raw: unknown,
   expectedLang: ResourceLang,
   expectedType: ResourceType,
-): ResourceFile<PatternData | SelectorsData | ThresholdsData | VoiceResultGroupsData> {
+): ResourceFile<PatternData | SelectorsData | ThresholdsData> {
   if (
     typeof raw !== "object" ||
     raw === null ||
@@ -128,7 +127,7 @@ function validateResourceFile(
     );
   }
 
-  const file = raw as ResourceFile<PatternData | SelectorsData | ThresholdsData | VoiceResultGroupsData>;
+  const file = raw as ResourceFile<PatternData | SelectorsData | ThresholdsData>;
 
   if (file.schemaVersion !== SUPPORTED_RESOURCE_SCHEMA) {
     throw new Error(

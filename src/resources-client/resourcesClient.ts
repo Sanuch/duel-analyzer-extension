@@ -6,7 +6,6 @@ import type {
   ResourceLang,
   SelectorsData,
   ThresholdsData,
-  VoiceResultGroupsData,
 } from "./types";
 import { readCached } from "./resourceCache";
 import { fetchManifest, loadChangedResources } from "./resourceLoader";
@@ -59,14 +58,6 @@ export function getThresholds(): ThresholdsData {
   return resolvedResources?.thresholds ?? LOCAL_FALLBACK.thresholds;
 }
 
-export function getVoicePatternSources(lang: ResourceLang): string[] {
-  return resolvedResources?.voicePatternSources[lang] ?? LOCAL_FALLBACK.voicePatternSources[lang];
-}
-
-export function getVoiceResultGroups(): VoiceResultGroupsData {
-  return resolvedResources?.voiceResultGroups ?? LOCAL_FALLBACK.voiceResultGroups;
-}
-
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
 async function buildResolvedResources(): Promise<ResolvedResources> {
@@ -86,19 +77,15 @@ async function buildResolvedResources(): Promise<ResolvedResources> {
   for (const type of PATTERN_TYPES) {
     const cached = await readCached<PatternData>("ru", type);
     if (cached && cached.data.patterns.length > 0) {
-      const compiled = cached.data.patterns.map((p) => new RegExp(p, "i"));
-      patterns.ru[type] = mergeCompiledPatterns(compiled, patterns.ru[type]);
-      patterns.en[type] = mergeCompiledPatterns(compiled, patterns.en[type]);
+      patterns.ru[type] = mergePatternEntries(cached.data.patterns, patterns.ru[type]);
+      patterns.en[type] = mergePatternEntries(cached.data.patterns, patterns.en[type]);
       if (type === "voice") {
-        voicePatternSources.ru = [...cached.data.patterns];
-        voicePatternSources.en = [...cached.data.patterns];
+        voicePatternSources.ru = cached.data.patterns.map((entry) => entry.pattern);
+        voicePatternSources.en = cached.data.patterns.map((entry) => entry.pattern);
       }
     }
   }
 
-  const voiceResultGroupsCached = await readCached<VoiceResultGroupsData>("ru", "voice-result-groups");
-  const voiceResultGroups: VoiceResultGroupsData =
-    voiceResultGroupsCached?.data ?? LOCAL_FALLBACK.voiceResultGroups;
 
   // Selectors and thresholds are language-independent; stored under "ru" key.
   const selectorsCached = await readCached<SelectorsData>("ru", "selectors");
@@ -107,7 +94,7 @@ async function buildResolvedResources(): Promise<ResolvedResources> {
   const thresholdsCached = await readCached<ThresholdsData>("ru", "thresholds");
   const thresholds: ThresholdsData = thresholdsCached?.data ?? LOCAL_FALLBACK.thresholds;
 
-  return { patterns, voicePatternSources, voiceResultGroups, selectors, thresholds };
+  return { patterns, voicePatternSources, selectors, thresholds };
 }
 
 function cloneFallbackPatterns(lang: ResourceLang): CompiledPatterns {
@@ -120,12 +107,12 @@ function cloneFallbackPatterns(lang: ResourceLang): CompiledPatterns {
   };
 }
 
-function mergeCompiledPatterns(primary: RegExp[], fallback: RegExp[]): RegExp[] {
-  const merged: RegExp[] = [];
+function mergePatternEntries(primary: PatternData["patterns"], fallback: PatternData["patterns"]): PatternData["patterns"] {
+  const merged: PatternData["patterns"] = [];
   const seen = new Set<string>();
 
   for (const pattern of [...primary, ...fallback]) {
-    const key = `${pattern.source}/${pattern.flags}`;
+    const key = `${pattern.pattern}::${pattern.result}`;
     if (seen.has(key)) continue;
     seen.add(key);
     merged.push(pattern);

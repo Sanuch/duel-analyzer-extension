@@ -18,6 +18,11 @@ export type ResourceType =
 /** Pattern-based resource types that map to CompiledPatterns fields. */
 export type PatternResourceType = "influence" | "miracle" | "voice" | "conditions";
 
+export interface PatternEntry {
+  pattern: string;
+  result: string;
+}
+
 export interface ResourceMeta {
   lang: ResourceLang;
   type: ResourceType;
@@ -35,25 +40,13 @@ export interface ResourceFile<T> {
 
 /** `data` shape for pattern-based resource files. */
 export interface PatternData {
-  /** Plain regex source strings (no delimiters). Case-insensitive flag applied on load. */
-  patterns: string[];
+  patterns: PatternEntry[];
 }
 
 /** `data` shape for the selectors resource file. */
 export interface SelectorsData {
   stepContainer: string;
   stepItem: string;
-}
-
-/** `data` shape for the thresholds resource file. */
-export interface ThresholdsData {
-  [key: string]: number;
-}
-
-/** `data` shape for voice result grouping config. */
-export interface VoiceResultGroupsData {
-  resultOrder: string[];
-  groups: Record<string, number[][]>;
 }
 
 /** Single entry in the remote resource manifest. */
@@ -73,19 +66,23 @@ export interface ResourceManifest {
   files: ManifestEntry[];
 }
 
-/** Compiled RegExp patterns ready for the recogniser. */
+/** Raw pattern entries ready for the recogniser. */
 export interface CompiledPatterns {
-  influence: RegExp[];
-  miracle: RegExp[];
-  voice: RegExp[];
-  conditions: RegExp[];
+  influence: PatternEntry[];
+  miracle: PatternEntry[];
+  voice: PatternEntry[];
+  conditions: PatternEntry[];
 }
 
 /** The resolved view of all resources the rest of the app consumes. */
 export interface ResolvedResources {
   patterns: Record<ResourceLang, CompiledPatterns>;
   voicePatternSources: Record<ResourceLang, string[]>;
-  voiceResultGroups: VoiceResultGroupsData;
   selectors: SelectorsData;
   thresholds: ThresholdsData;
+}
+
+/** `data` shape for the thresholds resource file. */
+export interface ThresholdsData {
+  [key: string]: number;
 }

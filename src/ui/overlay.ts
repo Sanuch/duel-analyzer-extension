@@ -13,7 +13,7 @@ function isDuelLogPage(): boolean {
 
 interface PlayerCells {
   influence: string;
-  voice: string;
+  voice?: string;
   health: string;
 }
 
@@ -25,15 +25,19 @@ function formatPlayerBlocks(player: PlayerState, config: BattleState["config"], 
   const influenceSuffix = i.badPositions.length > 0 ? `(${i.badPositions.join(",")})` : "";
   const influence = `влияния ${i.total}/${i.blockSize}${influenceSuffix}`;
   const voice = config.voiceBlock === 0
-    ? "гласы 0/0"
+    ? undefined
     : `гласы ${v.good}/${v.total}${v.extra > 0 ? `(${v.extra})` : ""}`;
 
   return { influence, voice, health: `здоровье ${health}` };
 }
 
-function renderPlayerRow(label: string, available: number, cells: PlayerCells): string {
+function renderPlayerRow(label: string, available: number, cells: PlayerCells, showVoice: boolean): string {
   const lbl = available > 0 ? `${label}[${available}]` : label;
-  return `<span class="da-lbl">${lbl}</span><span>${cells.influence}</span><span>${cells.voice}</span><span>${cells.health}</span>`;
+  if (showVoice) {
+    return `<span class="da-lbl">${lbl}</span><span>${cells.influence}</span><span>${cells.voice ?? ""}</span><span>${cells.health}</span>`;
+  }
+
+  return `<span class="da-lbl">${lbl}</span><span>${cells.influence}</span><span>${cells.health}</span>`;
 }
 
 function formatHealthPercent(_rawHealth: number, stepNumber: number, side: string): string {
@@ -173,6 +177,8 @@ export function render(state: BattleState, battleOver = false): void {
   const conditionLabel = state.config.condition !== "DEFAULT"
     ? `<div class="da-condition">${state.config.condition}</div>`
     : `<div class="da-condition">DEFAULT</div>`;
+  const showVoice = state.config.voiceBlock > 0;
+  const blocksClassName = showVoice ? "da-blocks" : "da-blocks da-no-voice";
 
   const uploadSection = canUpload ? `
     <div class="da-upload">
@@ -191,9 +197,9 @@ export function render(state: BattleState, battleOver = false): void {
         <h3>Duel Analyzer Live</h3>
         ${conditionLabel}
       </div>
-      <div class="da-blocks">
-        ${renderPlayerRow("Hero", state.hero.availableInfluences, formatPlayerBlocks(state.hero, state.config, state.currentStep))}
-        ${renderPlayerRow("Oppt", state.oppt.availableInfluences, formatPlayerBlocks(state.oppt, state.config, state.currentStep))}
+      <div class="${blocksClassName}">
+        ${renderPlayerRow("Hero", state.hero.availableInfluences, formatPlayerBlocks(state.hero, state.config, state.currentStep), showVoice)}
+        ${renderPlayerRow("Oppt", state.oppt.availableInfluences, formatPlayerBlocks(state.oppt, state.config, state.currentStep), showVoice)}
       </div>
       ${uploadSection}
     </div>
@@ -252,6 +258,10 @@ function ensureStyle(): void {
       font-size: 12px;
       line-height: 1.7;
       font-family: monospace;
+    }
+
+    #duel-analyzer-live-panel .da-blocks.da-no-voice {
+      grid-template-columns: 4.5em 9em auto;
     }
 
     #duel-analyzer-live-panel .da-lbl {
