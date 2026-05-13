@@ -49,13 +49,19 @@ export function applyEvents(state: BattleState, step: RawStep, envelope: ResultE
     }
     if (event.type === "INFLUENCE" && event.text === "hero_influence") {
       state.hero.powerCounter += 25;
+      const spent = state.hero.availableInfluences > 0;
       state.hero.availableInfluences = Math.max(0, state.hero.availableInfluences - 1);
-      state.oppt.availableInfluences += 1;
+      if (spent) {
+        state.oppt.availableInfluences += 1;
+      }
     }
     if (event.type === "INFLUENCE" && event.text === "oppt_influence") {
       state.oppt.powerCounter += 25;
+      const spent = state.oppt.availableInfluences > 0;
       state.oppt.availableInfluences = Math.max(0, state.oppt.availableInfluences - 1);
-      state.hero.availableInfluences += 1;
+      if (spent) {
+        state.hero.availableInfluences += 1;
+      }
     }
     if (event.type === "MIRACLE") {
       const miracleActor = event.text === "hero_miracle"
@@ -67,8 +73,11 @@ export function applyEvents(state: BattleState, step: RawStep, envelope: ResultE
 
       miracleActor.powerCounter += 50;
       miracleActor.miracles += 1;
+      const spent = miracleActor.availableInfluences > 0;
       miracleActor.availableInfluences = Math.max(0, miracleActor.availableInfluences - 1);
-      opponent.availableInfluences += 1;
+      if (spent) {
+        opponent.availableInfluences += 1;
+      }
     }
   }
 
