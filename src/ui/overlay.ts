@@ -11,18 +11,29 @@ function isDuelLogPage(): boolean {
   return /^\/duels\/log\/[^/]+$/i.test(window.location.pathname);
 }
 
-function formatPlayerBlocks(player: PlayerState, config: BattleState["config"], stepNumber: number): string {
+interface PlayerCells {
+  influence: string;
+  voice: string;
+  health: string;
+}
+
+function formatPlayerBlocks(player: PlayerState, config: BattleState["config"], stepNumber: number): PlayerCells {
   const v = getVoiceBlockStats(player.voiceActions, config.voiceBlock);
   const i = getInfluenceBlockStats(player.influenceActions, config.influenceBlock, player.availableInfluences);
   const health = formatHealthPercent(player.health, stepNumber, player.name);
 
   const influenceSuffix = i.badPositions.length > 0 ? `(${i.badPositions.join(",")})` : "";
-  const influencePart = `влияния ${i.total}/${i.blockSize}${influenceSuffix}`;
-  const voicePart = config.voiceBlock === 0
+  const influence = `влияния ${i.total}/${i.blockSize}${influenceSuffix}`;
+  const voice = config.voiceBlock === 0
     ? "гласы 0/0"
     : `гласы ${v.good}/${v.total}${v.extra > 0 ? `(${v.extra})` : ""}`;
 
-  return `${influencePart}; ${voicePart}; здоровье ${health}`;
+  return { influence, voice, health: `здоровье ${health}` };
+}
+
+function renderPlayerRow(label: string, available: number, cells: PlayerCells): string {
+  const lbl = available > 0 ? `${label}[${available}]` : label;
+  return `<span class="da-lbl">${lbl}</span><span>${cells.influence}</span><span>${cells.voice}</span><span>${cells.health}</span>`;
 }
 
 function formatHealthPercent(_rawHealth: number, stepNumber: number, side: string): string {
@@ -33,6 +44,7 @@ function formatHealthPercent(_rawHealth: number, stepNumber: number, side: strin
     return "—";
   }
 
+  if (currentHealth <= 1) return "0";
   const stepFactor = getStepCoefficient(stepNumber);
   const percent = currentHealth / maxHealth * 100 / stepFactor;
   return `${Math.max(0, percent).toFixed(1)}%`;
@@ -156,8 +168,8 @@ export function render(state: BattleState, battleOver = false): void {
         ${conditionLabel}
       </div>
       <div class="da-blocks">
-        <div><strong>Hero</strong>: ${formatPlayerBlocks(state.hero, state.config, state.currentStep)}</div>
-        <div><strong>Oppt</strong>: ${formatPlayerBlocks(state.oppt, state.config, state.currentStep)}</div>
+        ${renderPlayerRow("Hero", state.hero.availableInfluences, formatPlayerBlocks(state.hero, state.config, state.currentStep))}
+        ${renderPlayerRow("Oppt", state.oppt.availableInfluences, formatPlayerBlocks(state.oppt, state.config, state.currentStep))}
       </div>
       ${uploadSection}
     </div>
@@ -210,9 +222,17 @@ function ensureStyle(): void {
     }
 
     #duel-analyzer-live-panel .da-blocks {
+      display: grid;
+      grid-template-columns: 4.5em 9em 8em auto;
+      column-gap: 4px;
       font-size: 12px;
       line-height: 1.7;
       font-family: monospace;
+    }
+
+    #duel-analyzer-live-panel .da-lbl {
+      font-weight: bold;
+      white-space: nowrap;
     }
 
     #duel-analyzer-live-panel .da-condition {
