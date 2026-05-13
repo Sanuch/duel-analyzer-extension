@@ -59,28 +59,7 @@ function analyzePlayerTexts(
   }
 
   const remaining = [...playerTexts];
-  let voicePhrase: string | undefined;
-  let voiceCommandFound = false;
-
-  // 1) consume voice-response phrase from resources
-  for (let i = 0; i < remaining.length; i++) {
-    if (matchesAny(remaining[i], patterns.voice)) {
-      voicePhrase = remaining[i];
-      remaining.splice(i, 1);
-      break;
-    }
-  }
-
-  // 2) consume voice command marker (quoted command)
-  for (let i = 0; i < remaining.length; i++) {
-    if (VOICE_COMMAND_RE.test(remaining[i])) {
-      voiceCommandFound = true;
-      remaining.splice(i, 1);
-      break;
-    }
-  }
-
-  // 3) find direct influence action from resources
+  // 1) consume miracle first (same pipeline order as logs2)
   let miracleDetected = false;
   for (let i = 0; i < remaining.length; i++) {
     if (matchesAny(remaining[i], patterns.miracle)) {
@@ -90,13 +69,36 @@ function analyzePlayerTexts(
     }
   }
 
-  // 4) find direct influence action from resources
+  // 2) consume influence before any voice parsing
   let influenceResult: InfluenceResult | undefined;
   let influenceText: string | undefined;
-  for (const t of remaining) {
+  for (let i = 0; i < remaining.length; i++) {
+    const t = remaining[i];
     if (matchesAny(t, patterns.influence)) {
       influenceResult = classifyInfluenceResultByVoiceHint(t);
       influenceText = t;
+      remaining.splice(i, 1);
+      break;
+    }
+  }
+
+  let voicePhrase: string | undefined;
+  let voiceCommandFound = false;
+
+  // 3) consume voice-response phrase from resources
+  for (let i = 0; i < remaining.length; i++) {
+    if (matchesAny(remaining[i], patterns.voice)) {
+      voicePhrase = remaining[i];
+      remaining.splice(i, 1);
+      break;
+    }
+  }
+
+  // 4) consume voice command marker (quoted command)
+  for (let i = 0; i < remaining.length; i++) {
+    if (VOICE_COMMAND_RE.test(remaining[i])) {
+      voiceCommandFound = true;
+      remaining.splice(i, 1);
       break;
     }
   }
