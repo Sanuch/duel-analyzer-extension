@@ -58,10 +58,16 @@ export function applyEvents(state: BattleState, step: RawStep, envelope: ResultE
       state.hero.availableInfluences += 1;
     }
     if (event.type === "MIRACLE") {
-      actor.powerCounter += 50;
-      actor.miracles += 1;
-      actor.availableInfluences = Math.max(0, actor.availableInfluences - 1);
-      const opponent = owner === "HERO" ? state.oppt : state.hero;
+      const miracleActor = event.text === "hero_miracle"
+        ? state.hero
+        : event.text === "oppt_miracle"
+          ? state.oppt
+          : actor;
+      const opponent = miracleActor === state.hero ? state.oppt : state.hero;
+
+      miracleActor.powerCounter += 50;
+      miracleActor.miracles += 1;
+      miracleActor.availableInfluences = Math.max(0, miracleActor.availableInfluences - 1);
       opponent.availableInfluences += 1;
     }
   }

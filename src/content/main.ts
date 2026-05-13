@@ -1,4 +1,4 @@
-import { applyConfig, applyEvents } from "../core/calculator";
+import { applyConfig, applyEvents, getVoiceBlockStats } from "../core/calculator";
 import { extractStepGroup } from "../core/extractor";
 import { createInitialState } from "../core/model";
 import { detectCondition, recognise } from "../core/recogniser";
@@ -29,24 +29,17 @@ function isArenaDuelPage(): boolean {
   return true;
 }
 
-/** Returns true if the battle is over (current step equals max step). */
-function isBattleOver(): boolean {
-  const turnNumEl = document.getElementById("turn_num");
-  if (!turnNumEl) return false;
-  const text = turnNumEl.parentElement?.textContent ?? "";
-  // Format: "Вести с арены (шаг N / MAX)"
-  const match = text.match(/(\d+)\s*\/\s*(\d+)/);
-  if (!match) return false;
-  return match[1] === match[2];
+/**
+ * Checks whether the active-battle auto-refresh checkbox is present.
+ * The checkbox exists only while the battle is still ongoing.
+ */
+function hasUpdateCheckbox(): boolean {
+  return document.querySelector("input#update[name='update'][type='checkbox']") !== null;
 }
 
-/**
- * Final duel page load after fight ends usually has no u=1 in URL.
- * Show upload button in that case even if step header format differs.
- */
-function isFinalPageLoad(): boolean {
-  const url = new URL(window.location.href);
-  return url.searchParams.get("u") !== "1";
+/** Returns true when the battle is over and the active-battle checkbox is gone. */
+function isBattleOver(): boolean {
+  return !hasUpdateCheckbox();
 }
 
 function normalizeForCompare(text: string): string {
@@ -237,7 +230,7 @@ async function bootstrap(): Promise<void> {
     subtree: false,
   });
 
-  render(state, isBattleOver() || isFinalPageLoad());
+  render(state, isBattleOver());
 }
 
 async function processStepGroup(nodes: Node[], fallbackNumber: number): Promise<void> {
@@ -280,7 +273,7 @@ async function processStepGroup(nodes: Node[], fallbackNumber: number): Promise<
     addInfluenceCounterToMatchedText(nodes, recognised.oppt.influenceText, posInBlock, blockSize);
   }
   
-  render(state, isBattleOver() || isFinalPageLoad());
+  render(state, isBattleOver());
 }
 
 void bootstrap();

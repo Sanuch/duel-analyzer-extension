@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Duel Analyzer",
-  "version": "1.3.1321",
+  "version": "1.4.3943",
   "description": "Realtime duel analyzer overlay",
   "icons": {
     "16": "icons/icon16.png",
@@ -17,7 +17,8 @@
   "host_permissions": [
     "https://godville.net/*",
     "https://a.godville.net/*",
-    "https://b.godville.net/*"
+    "https://b.godville.net/*",
+    "https://gvl.sanuch.name/*"
   ],
   "content_scripts": [
     {
