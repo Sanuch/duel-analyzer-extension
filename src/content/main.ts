@@ -1,7 +1,9 @@
+import browser from "webextension-polyfill";
 import { applyConfig, applyEvents, getVoiceBlockStats } from "../core/calculator";
 import { extractStepGroup } from "../core/extractor";
 import { createInitialState } from "../core/model";
 import { detectCondition, recognise } from "../core/recogniser";
+import { versionNotificationManager } from "../core/version-notification";
 import {
   buildUnknownPhraseItems,
   createUnknownPhraseReporter,
@@ -275,5 +277,39 @@ async function processStepGroup(nodes: Node[], fallbackNumber: number): Promise<
   
   render(state, isBattleOver());
 }
+
+// ─── Version update notifications ─────────────────────────────────────────────
+
+browser.runtime.onMessage.addListener((message: unknown) => {
+  if (
+    typeof message === "object" &&
+    message !== null &&
+    "type" in message &&
+    message.type === "VERSION_UPDATE_AVAILABLE"
+  ) {
+    const versionMsg = message as {
+      type: string;
+      current?: string;
+      latest?: string;
+      updateUrl?: string;
+    };
+
+    const current = versionMsg.current || "unknown";
+    const latest = versionMsg.latest || "unknown";
+
+    // Проверяем, не отклонил ли пользователь это обновление ранее
+    if (versionNotificationManager.isDismissed(latest)) {
+      console.log(`[duel-analyzer] version ${latest} was previously dismissed`);
+      return;
+    }
+
+    // Показываем баннер обновления
+    versionNotificationManager.showUpdateBanner({
+      current,
+      latest,
+      updateUrl: versionMsg.updateUrl,
+    });
+  }
+});
 
 void bootstrap();

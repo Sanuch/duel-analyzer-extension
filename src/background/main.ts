@@ -1,5 +1,6 @@
 import browser from "webextension-polyfill";
 import { refreshResources } from "../resources-client/resourcesClient";
+import { initializeVersionCheck } from "../core/version-manager";
 
 /**
  * Remote manifest URL.
@@ -10,8 +11,11 @@ const PHRASES_MANIFEST_URL = import.meta.env.VITE_PHRASES_MANIFEST_URL ?? "";
 const LOGS2_API_URL = import.meta.env.VITE_LOGS2_API_URL ?? "https://gvl.sanuch.name";
 
 const REFRESH_ALARM = "da-resources-refresh";
+const VERSION_CHECK_ALARM = "da-version-check";
 /** Refresh interval in minutes (60 min = once per hour). */
 const REFRESH_INTERVAL_MINUTES = 60;
+/** Version check interval in minutes (4 hours = 240 minutes). */
+const VERSION_CHECK_INTERVAL_MINUTES = 240;
 
 // ─── Resource refresh helpers ─────────────────────────────────────────────────
 
@@ -26,6 +30,16 @@ async function triggerRefresh(): Promise<void> {
   }
 }
 
+// ─── Version check helpers ────────────────────────────────────────────────────
+
+async function triggerVersionCheck(): Promise<void> {
+  try {
+    await initializeVersionCheck();
+  } catch (err) {
+    console.warn("[duel-analyzer] version check failed:", err);
+  }
+}
+
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 browser.runtime.onInstalled.addListener(() => {
@@ -34,13 +48,25 @@ browser.runtime.onInstalled.addListener(() => {
     periodInMinutes: REFRESH_INTERVAL_MINUTES,
   });
 
+  // Schedule periodic version check on first install / update.
+  void browser.alarms.create(VERSION_CHECK_ALARM, {
+    periodInMinutes: VERSION_CHECK_INTERVAL_MINUTES,
+  });
+
   // Eagerly refresh resources right after install/update.
   void triggerRefresh();
+
+  // Eagerly check for new version right after install/update.
+  void triggerVersionCheck();
 });
 
 browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === REFRESH_ALARM) {
     void triggerRefresh();
+  }
+
+  if (alarm.name === VERSION_CHECK_ALARM) {
+    void triggerVersionCheck();
   }
 });
 
