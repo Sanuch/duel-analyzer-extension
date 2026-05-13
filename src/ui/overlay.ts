@@ -54,6 +54,21 @@ function getStepCoefficient(stepNumber: number): number {
   return stepNumber <= 60 ? 1 : 1 + (stepNumber - 60) * 0.02;
 }
 
+function looksLikeLoginPage(url: string, html: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  const urlLooksLikeLogin = /\/(login|signin|auth|session|users\/sign_in|oauth)\b/.test(lowerUrl);
+
+  const hasPasswordField = /type=["']password["']|name=["']password["']/i.test(html);
+  const hasAuthFormMarker = /<form[^>]+(login|signin|auth|session)|id=["'][^"']*(login|signin|auth)|class=["'][^"']*(login|signin|auth)/i.test(html);
+  const hasLoginWords = /(войти|вход|логин|пароль|sign in|log in|login|password)/i.test(html);
+
+  return urlLooksLikeLogin || (hasPasswordField && (hasAuthFormMarker || hasLoginWords));
+}
+
+function looksLikeArenaLogPage(html: string): boolean {
+  return /id=["']last_items_arena["']|Вести с арены/i.test(html);
+}
+
 async function fetchCleanLogHtml(): Promise<string> {
   const response = await fetch(window.location.href, {
     method: "GET",
@@ -68,6 +83,15 @@ async function fetchCleanLogHtml(): Promise<string> {
   const html = await response.text();
   if (!html.trim()) {
     throw new Error("Не удалось получить исходный лог");
+  }
+
+  if (looksLikeLoginPage(response.url, html)) {
+    throw new Error("Сессия истекла: вместо лога получена страница входа. Авторизуйтесь и повторите попытку");
+  }
+
+  if (!looksLikeArenaLogPage(html)) {
+    const redirectHint = response.redirected ? ` (redirect: ${response.url})` : "";
+    throw new Error(`Вместо страницы лога получен другой документ${redirectHint}`);
   }
 
   return html;
