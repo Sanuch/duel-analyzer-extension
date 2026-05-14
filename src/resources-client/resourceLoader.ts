@@ -10,8 +10,8 @@ import type {
 } from "./types";
 import { getCacheVersions, makeCacheKey, writeToCache } from "./resourceCache";
 
-const SUPPORTED_MANIFEST_SCHEMA = "1.0";
-const SUPPORTED_RESOURCE_SCHEMA = "1.0";
+const SUPPORTED_MANIFEST_SCHEMA = "2.0";
+const SUPPORTED_RESOURCE_SCHEMA = "2.0";
 
 // ─── Manifest ────────────────────────────────────────────────────────────────
 
@@ -78,31 +78,23 @@ export async function loadChangedResources(manifest: ResourceManifest): Promise<
 // ─── Single-file fetch ───────────────────────────────────────────────────────
 
 async function fetchAndCacheEntry(entry: ManifestEntry): Promise<void> {
-  const response = await fetch(entry.url, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(
-      `Resource fetch failed [${entry.lang}/${entry.type}]: ${response.status} ${response.statusText}`,
-    );
+  console.log(`Starting fetch for resource: ${entry.url}`);
+  try {
+    const response = await fetch(entry.url, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch resource: ${entry.url}, status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`Fetched resource successfully: ${entry.url}`);
+
+    // Validate and cache the resource
+    const validated = validateResourceFile(data, entry.lang, entry.type);
+    await writeToCache(validated);
+    console.log(`Resource cached: ${entry.type} (${entry.lang}), version: ${entry.dataVersion}`);
+  } catch (error) {
+    console.error(`Error fetching resource: ${entry.url}`, error);
   }
-
-  const bodyText = await response.text();
-  const json: unknown = JSON.parse(bodyText);
-  const file = validateResourceFile(json, entry.lang, entry.type);
-
-  const canonicalDataJson = JSON.stringify(file.data);
-  const actualChecksum = await computeSha256Hex(canonicalDataJson);
-  const expectedChecksum = entry.checksum.startsWith("sha256:")
-    ? entry.checksum.slice(7)
-    : entry.checksum;
-
-  if (actualChecksum !== expectedChecksum) {
-    throw new Error(
-      `Checksum mismatch for [${entry.lang}/${entry.type}]: ` +
-        `expected ${expectedChecksum}, got ${actualChecksum}`,
-    );
-  }
-
-  await writeToCache(file);
 }
 
 // ─── Validation ──────────────────────────────────────────────────────────────

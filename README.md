@@ -22,7 +22,7 @@ Standalone phrase catalog published to GitHub. Contains battle pattern data extr
 
 **URL Template:**
 ```
-https://raw.githubusercontent.com/YOUR_ORG/duel-analyzer-phrases/main/manifest.json
+https://raw.githubusercontent.com/YOUR_ORG/duel-analyzer-phrases/main/manifest.v2.json
 ```
 
 ## Building the Extension
@@ -43,7 +43,7 @@ npm run dev         # Watch mode
 Set the phrases manifest URL before building:
 
 ```bash
-export VITE_PHRASES_MANIFEST_URL="https://raw.githubusercontent.com/YOUR_ORG/duel-analyzer-phrases/main/manifest.json"
+export VITE_PHRASES_MANIFEST_URL="https://raw.githubusercontent.com/YOUR_ORG/duel-analyzer-phrases/main/manifest.v2.json"
 npm run build
 ```
 
