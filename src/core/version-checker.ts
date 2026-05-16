@@ -20,6 +20,10 @@ export class VersionChecker {
       return cached;
     }
 
+    if (!VERSION_CHECK_URL) {
+      return this.defaultResponse();
+    }
+
     try {
       const response = await fetch(VERSION_CHECK_URL);
       if (!response.ok) {
