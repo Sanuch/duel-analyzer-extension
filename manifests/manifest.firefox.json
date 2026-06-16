@@ -19,7 +19,8 @@
     "https://a.godville.net/*",
     "https://b.godville.net/*",
     "https://gvl.sanuch.name/*",
-    "https://api.github.com/*"
+    "https://api.github.com/*",
+    "https://raw.githubusercontent.com/*"
   ],
   "content_scripts": [
     {
