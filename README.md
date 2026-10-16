@@ -44,6 +44,8 @@ change of the step in %, with the amplification-free value in brackets. 🪙 mar
 and the header counts them (`3×🪙`). 🟡 marks an empty step (nobody acted; the plain lines are filler
 texts) and the header warns while one is shown.
 
+The "upload the log to the server" button is hidden for now (`UPLOAD_ENABLED` in `src/ui/overlay.ts`); the upload code and the background handler stay, so it comes back by flipping the flag once a server exists.
+
 Every counted influence and voice of the log gets a badge (`2/6`, `2/6 ✗`, `7/10 ✓`) so each number can
 be traced to its lines.
 

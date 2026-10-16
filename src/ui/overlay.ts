@@ -6,6 +6,12 @@ const ROOT_ID = "duel-analyzer-live-panel";
 const STYLE_ID = "duel-analyzer-style";
 const UPLOAD_BTN_ID = "duel-analyzer-upload-btn";
 const UPLOAD_STATUS_ID = "duel-analyzer-upload-status";
+/**
+ * The "upload the log to the server" button (and its hint) is hidden until there is a server
+ * to upload to. The upload itself (`uploadLog`, the `duel-analyzer.upload-log` message of the
+ * background worker) is kept: set this to true to bring the button back.
+ */
+const UPLOAD_ENABLED = false;
 const COLLAPSED_KEY = "duelAnalyzerCollapsed";
 const POSITION_KEY = "duelAnalyzerPosition";
 const COIN = "🪙";
@@ -293,6 +299,10 @@ function renderCard(state: BattleState, canUpload: boolean, battleOver: boolean)
 }
 
 function renderUploadSection(canUpload: boolean, battleOver: boolean): string {
+  if (!UPLOAD_ENABLED) {
+    return "";
+  }
+
   if (canUpload) {
     return `
       <div class="da-upload">
