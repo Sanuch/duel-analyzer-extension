@@ -11,12 +11,13 @@ export type ResourceType =
   | "miracle"
   | "voice"
   | "conditions"
+  | "emptyStep"
   | "voice-result-groups"
   | "selectors"
   | "thresholds";
 
 /** Pattern-based resource types that map to CompiledPatterns fields. */
-export type PatternResourceType = "influence" | "miracle" | "voice" | "conditions";
+export type PatternResourceType = "influence" | "miracle" | "voice" | "conditions" | "emptyStep";
 
 export interface PatternEntry {
   pattern: string;
@@ -72,6 +73,8 @@ export interface CompiledPatterns {
   miracle: PatternEntry[];
   voice: PatternEntry[];
   conditions: PatternEntry[];
+  /** Filler texts of a step in which nobody acted (intermission, audience, referee). */
+  emptyStep: PatternEntry[];
 }
 
 /** The resolved view of all resources the rest of the app consumes. */

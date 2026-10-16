@@ -16,6 +16,11 @@ function matchPatternResult(text: string, patterns: Array<{ pattern: string; res
   return undefined;
 }
 
+/** True when any entry matches; unlike `matchPatternResult` it does not depend on the entry's `result`. */
+function matchesAnyEntry(text: string, patterns: Array<{ pattern: string }>): boolean {
+  return patterns.some(({ pattern }) => new RegExp(pattern, "i").test(text));
+}
+
 function analyzePlayerTexts(
   playerTexts: string[],
   patterns: CompiledPatterns,
@@ -25,6 +30,7 @@ function analyzePlayerTexts(
   miracleDetected?: boolean;
   influenceResult?: InfluenceResult;
   influenceText?: string;
+  voiceText?: string;
 } {
   if (playerTexts.length === 0) {
     return {};
@@ -57,6 +63,7 @@ function analyzePlayerTexts(
 
   let voiceResult: VoiceResult | undefined;
   let voiceCommandFound = false;
+  let voiceText: string | undefined;
 
   // 3) consume voice-response phrase from resources
   for (let i = 0; i < remaining.length; i++) {
@@ -72,6 +79,7 @@ function analyzePlayerTexts(
   for (let i = 0; i < remaining.length; i++) {
     if (VOICE_COMMAND_RE.test(remaining[i])) {
       voiceCommandFound = true;
+      voiceText = remaining[i];
       remaining.splice(i, 1);
       break;
     }
@@ -82,6 +90,7 @@ function analyzePlayerTexts(
     miracleDetected,
     influenceResult,
     influenceText,
+    voiceText,
   };
 }
 
@@ -129,15 +138,19 @@ export function recognise(rawStep: RawStep): ResultEnvelope {
   return {
     events,
     unknownPhrases: [],
+    // As in logs2: the plain lines of the step are searched together for a filler text.
+    empty: matchesAnyEntry(rawStep.neutralTexts.join("\n"), patterns.emptyStep),
     hero: {
       voiceResult: hero.voiceResult,
       influenceResult: hero.influenceResult,
       influenceText: hero.influenceText,
+      voiceText: hero.voiceText,
     },
     oppt: {
       voiceResult: oppt.voiceResult,
       influenceResult: oppt.influenceResult,
       influenceText: oppt.influenceText,
+      voiceText: oppt.voiceText,
     },
   };
 }

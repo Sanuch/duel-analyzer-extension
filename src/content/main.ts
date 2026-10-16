@@ -1,20 +1,43 @@
 import browser from "webextension-polyfill";
-import { applyConfig, applyEvents, getVoiceBlockStats } from "../core/calculator";
-import { extractStepGroup } from "../core/extractor";
+import { buildBattleState } from "../core/battle";
+import type { AnalysedStep } from "../core/battle";
+import {
+  extractBattleId,
+  extractCurrentStep,
+  extractHealth,
+  extractHealthTimeline,
+  extractStepGroup,
+} from "../core/extractor";
+import type { HealthPoint, HealthTimeline } from "../core/model";
 import { createInitialState } from "../core/model";
-import { detectCondition, recognise } from "../core/recogniser";
+import { recognise } from "../core/recogniser";
 import { versionNotificationManager } from "../core/version-notification";
+import { loadBattleHealth, saveBattleHealth } from "../integrations/healthHistoryStorage";
 import {
   buildUnknownPhraseItems,
   createUnknownPhraseReporter,
 } from "../integrations/unknownPhraseReporter";
 import { getSelectors, initResources } from "../resources-client/resourcesClient";
+import { markLog } from "../ui/logBadges";
 import { render } from "../ui/overlay";
 
-
-let state = createInitialState();
 const unknownPhraseReporter = createUnknownPhraseReporter();
 const PHRASES_MANIFEST_URL = import.meta.env.VITE_PHRASES_MANIFEST_URL ?? "";
+
+/** A recognised step together with the DOM rows it comes from. */
+interface LogStep extends AnalysedStep {
+  nodes: Node[];
+}
+
+/** Recognised steps by number. The state is rebuilt from them for the step the page shows. */
+const logSteps = new Map<number, LogStep>();
+/** Set when steps were added, so the log badges are rewritten only then (not on every replay step). */
+let badgesDirty = true;
+
+// Health of the steps of a live log: remembered while watching, kept per battle.
+let liveHealth = new Map<number, HealthPoint>();
+let liveMax: HealthPoint | null = null;
+let battleId = "";
 
 function isArenaDuelPage(): boolean {
   const url = new URL(window.location.href);
@@ -42,56 +65,6 @@ function hasUpdateCheckbox(): boolean {
 /** Returns true when the battle is over and the active-battle checkbox is gone. */
 function isBattleOver(): boolean {
   return !hasUpdateCheckbox();
-}
-
-function normalizeForCompare(text: string): string {
-  return text
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/ё/g, "е");
-}
-
-function addInfluenceCounterToMatchedText(
-  nodes: Node[],
-  influenceText: string,
-  currentInBlock: number,
-  blockSize: number,
-): void {
-  const target = normalizeForCompare(influenceText);
-  if (!target) return;
-
-  const elements = nodes.filter((n): n is HTMLElement => n instanceof HTMLElement);
-  for (const el of elements) {
-    const spans = Array.from(el.querySelectorAll(".text_content .t")) as HTMLElement[];
-    for (const span of spans) {
-      if (span.nextElementSibling?.classList.contains("influence-counter")) {
-        continue;
-      }
-
-      const text = span.textContent ?? "";
-      if (normalizeForCompare(text) !== target) {
-        continue;
-      }
-
-      const counterBadge = document.createElement("span");
-      counterBadge.className = "influence-counter";
-      counterBadge.style.cssText = [
-        "display:inline-block",
-        "margin-left:4px",
-        "padding:1px 4px",
-        "background:rgba(100, 150, 200, 0.2)",
-        "border-radius:3px",
-        "font-size:0.85em",
-        "color:#666",
-        "font-weight:normal",
-      ].join(";");
-      counterBadge.textContent = `${currentInBlock}/${blockSize}`;
-
-      span.insertAdjacentElement("afterend", counterBadge);
-      return;
-    }
-  }
 }
 
 const GODVILLE_CONTAINER_FALLBACK = "#last_items_arena .d_content";
@@ -139,8 +112,6 @@ async function bootstrap(): Promise<void> {
 
   await initResources(PHRASES_MANIFEST_URL);
 
-  state = createInitialState();
-
   const selectors = getSelectors();
   const container = resolveStepContainer(selectors.stepContainer);
   if (!container) {
@@ -151,8 +122,17 @@ async function bootstrap(): Promise<void> {
     return;
   }
 
+  battleId = extractBattleId();
+  try {
+    // Live logs: the health of earlier steps is only known from what was seen before.
+    const watched = await loadBattleHealth(battleId);
+    liveHealth = watched.byStep;
+    liveMax = watched.max;
+  } catch (error) {
+    console.warn("[duel-analyzer] battle health history unavailable", error);
+  }
+
   const knownNodes = new WeakSet<Node>();
-  let sequence = 0;
 
   // Group all existing nodes by step number, then process each group in ascending order.
   const allNodes = resolveStepItems(container, selectors.stepItem);
@@ -179,10 +159,11 @@ async function bootstrap(): Promise<void> {
   // Sort step numbers ascending (oldest first) for correct state accumulation
   const sortedStepNums = Array.from(stepGroupsMap.keys()).sort((a, b) => a - b);
 
+  let sequence = 0;
   for (const stepNum of sortedStepNums) {
     const nodes = stepGroupsMap.get(stepNum)!;
     sequence += 1;
-    await processStepGroup(nodes, sequence);
+    await processStepGroup(nodes, sequence, false);
   }
 
   // ── Live mode: buffer incoming nodes by step number ──────────────────────────
@@ -232,20 +213,37 @@ async function bootstrap(): Promise<void> {
     subtree: false,
   });
 
-  render(state, isBattleOver());
+  // A finished log is replayed by the page: the step shown (`#turn_num`) and the health
+  // (`#hp0`, `#hp1`) change without any new rows, and the panel has to follow them.
+  const followPage = new MutationObserver(() => refresh());
+  const watch = document.querySelectorAll("#turn_num, #hp0, #hp1");
+  for (const node of Array.from(watch)) {
+    followPage.observe(node, { childList: true, characterData: true, subtree: true });
+  }
+
+  refresh();
 }
 
-async function processStepGroup(nodes: Node[], fallbackNumber: number): Promise<void> {
-  const rawStep = extractStepGroup(nodes, fallbackNumber);
-  if (!rawStep) return;
+async function processStepGroup(
+  nodes: Node[],
+  fallbackNumber: number,
+  refreshNow = true,
+): Promise<void> {
+  const firstNumber = getStepNumber(nodes[0]);
+  // Rows of a step may arrive in several pieces: recognise the step from all of them.
+  const previous = firstNumber !== null ? logSteps.get(firstNumber) : undefined;
+  const allNodes = previous ? [...previous.nodes, ...nodes] : nodes;
 
-  const recognised = recognise(rawStep);
+  const raw = extractStepGroup(allNodes, fallbackNumber);
+  if (!raw) return;
 
-  const unknownPhrases = recognised.unknownPhrases;
+  const envelope = recognise(raw);
+
+  const unknownPhrases = envelope.unknownPhrases;
   if (unknownPhrases.length > 0) {
     const items = buildUnknownPhraseItems({
       phrases: unknownPhrases,
-      stepNumber: rawStep.number,
+      stepNumber: raw.number,
       lang: "ru",
     });
     try {
@@ -255,27 +253,73 @@ async function processStepGroup(nodes: Node[], fallbackNumber: number): Promise<
     }
   }
 
-  if (rawStep.number <= 3 && state.config.condition === "DEFAULT") {
-    const condition = detectCondition(rawStep.texts);
-    applyConfig(state, condition);
+  logSteps.set(raw.number, { raw, envelope, nodes: allNodes });
+  badgesDirty = true;
+
+  if (refreshNow) {
+    refresh();
+  }
+}
+
+/**
+ * Redraws the panel for the step the page shows: the last step of a live log, or the step
+ * of the replay slider of a finished one.
+ */
+function refresh(): void {
+  const steps = [...logSteps.values()];
+  if (steps.length === 0) {
+    render(createInitialState(), isBattleOver());
+    return;
   }
 
-  applyEvents(state, rawStep, recognised);
+  const last = Math.max(...steps.map((step) => step.raw.number));
+  const current = Math.min(extractCurrentStep() ?? last, last);
 
-  const blockSize = state.config.influenceBlock;
-  if (recognised.hero.influenceResult !== undefined && recognised.hero.influenceText) {
-    const used = state.hero.influenceActions.length;
-    const posInBlock = ((used - 1) % blockSize) + 1;
-    addInfluenceCounterToMatchedText(nodes, recognised.hero.influenceText, posInBlock, blockSize);
-  }
-
-  if (recognised.oppt.influenceResult !== undefined && recognised.oppt.influenceText) {
-    const used = state.oppt.influenceActions.length;
-    const posInBlock = ((used - 1) % blockSize) + 1;
-    addInfluenceCounterToMatchedText(nodes, recognised.oppt.influenceText, posInBlock, blockSize);
-  }
-  
+  const state = buildBattleState(steps, current, collectHealth(current));
   render(state, isBattleOver());
+
+  if (badgesDirty) {
+    badgesDirty = false;
+    // The block sizes depend on the condition announced at the start, whatever step is shown.
+    const config = buildBattleState(steps, last).config;
+    markLog(
+      steps.map((step) => ({ number: step.raw.number, nodes: step.nodes, envelope: step.envelope })),
+      config,
+    );
+  }
+}
+
+/**
+ * Health of every step. A finished log has the whole history in the page; a live log only
+ * shows the current health, so the points seen so far are accumulated and remembered.
+ */
+function collectHealth(current: number): HealthTimeline | undefined {
+  const fromPage = extractHealthTimeline();
+  const shown = extractHealth();
+
+  if (shown) {
+    const max = { hero: shown.hero.maxHealth, oppt: shown.oppt.maxHealth };
+    const point = { hero: shown.hero.health, oppt: shown.oppt.health };
+
+    if (fromPage.size > 0) {
+      if (!fromPage.has(current)) {
+        fromPage.set(current, point);
+      }
+      return { max, byStep: fromPage };
+    }
+
+    const known = liveHealth.get(current);
+    if (!known || known.hero !== point.hero || known.oppt !== point.oppt) {
+      liveHealth.set(current, point);
+      void saveBattleHealth(battleId, max, liveHealth).catch((error) =>
+        console.warn("[duel-analyzer] battle health not saved", error),
+      );
+    }
+    liveMax = max;
+    return { max, byStep: liveHealth };
+  }
+
+  return liveMax ? { max: liveMax, byStep: liveHealth } : undefined;
 }
 
 // ─── Version update notifications ─────────────────────────────────────────────

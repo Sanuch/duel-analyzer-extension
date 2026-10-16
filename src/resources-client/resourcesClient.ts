@@ -16,6 +16,7 @@ const PATTERN_TYPES: PatternResourceType[] = [
   "miracle",
   "voice",
   "conditions",
+  "emptyStep",
 ];
 
 let resolvedResources: ResolvedResources | null = null;
@@ -104,6 +105,7 @@ function cloneFallbackPatterns(lang: ResourceLang): CompiledPatterns {
     miracle: [...fb.miracle],
     voice: [...fb.voice],
     conditions: [...fb.conditions],
+    emptyStep: [...fb.emptyStep],
   };
 }
 

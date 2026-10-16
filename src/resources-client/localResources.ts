@@ -11,12 +11,14 @@ export const LOCAL_FALLBACK: ResolvedResources = {
       influence: [],
       miracle: [],
       conditions: [],
+      emptyStep: [],
     },
     en: {
       voice: [],
       influence: [],
       miracle: [],
       conditions: [],
+      emptyStep: [],
     },
   },
   voicePatternSources: {

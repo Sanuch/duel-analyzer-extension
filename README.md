@@ -25,6 +25,36 @@ Standalone phrase catalog published to GitHub. Contains battle pattern data extr
 https://raw.githubusercontent.com/YOUR_ORG/duel-analyzer-phrases/main/manifest.v2.json
 ```
 
+## Panel
+
+One card on an arena log: a header (step, the duel condition), a Hero / Oppt table and the last steps.
+It is shown at the top of the central column of a live log and as a collapsible, draggable window of
+a finished one, which can be replayed — the panel follows the step shown by the page (`#turn_num`).
+
+| Row | Meaning |
+| --- | --- |
+| Зд | Health in % of max health; after step 60 damage is amplified, then `30% (28%)` shows the value without the amplification |
+| Вл | Influences in the current block, e.g. `4/6`; `4/6(2)` — the 2nd one was a "кривое" (empty / mutual / turned against the caster) |
+| Гл | Voices in the current block, e.g. `7/10(3)`: 3 of them worked; `7/10(5:2)` — and 2 extra voices; `–` when the gods cannot be heard |
+| Пр | Spent prana |
+
+`Hero[3]` / `Oppt[1]`: how many influences each god can use right now. The last steps show the health
+change of the step in %, with the amplification-free value in brackets. 🪙 marks a "coin" step (the
+`is_coin` rule of logs2: after the 3rd step two plain action lines, three when the heroes go together)
+and the header counts them (`3×🪙`). 🟡 marks an empty step (nobody acted; the plain lines are filler
+texts) and the header warns while one is shown.
+
+Every counted influence and voice of the log gets a badge (`2/6`, `2/6 ✗`, `7/10 ✓`) so each number can
+be traced to its lines.
+
+Health of every step comes from the `var hp` script of a finished log; a live log has none, so the points
+seen while watching are remembered per battle in `storage.local`.
+
+**Phrases.** As before, no phrase dictionaries are bundled. The panel needs the published catalog
+(`influence`, `voice`, `miracle`, `conditions`) and a new type, `emptyStep` — filler texts of empty steps,
+extracted from the `EmptyStepRecogniser` of logs2. Without `emptyStep` there are no empty-step marks;
+without `conditions` the duel condition is unknown and coins are not shown.
+
 ## Building the Extension
 
 ### Prerequisites

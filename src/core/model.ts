@@ -14,11 +14,15 @@ export interface PlayerResult {
   voiceResult?: VoiceResult;
   influenceResult?: InfluenceResult;
   influenceText?: string;
+  /** The line with the quoted voice command, to mark it in the log. */
+  voiceText?: string;
 }
 
 export interface ResultEnvelope {
   events: StepEvent[];
   unknownPhrases: string[];
+  /** Nobody acted in this step: its plain lines are filler texts (intermission, audience, referee). */
+  empty: boolean;
   hero: PlayerResult;
   oppt: PlayerResult;
 }
@@ -38,10 +42,36 @@ export interface RawStep {
   };
 }
 
+/** Health in points: both players. */
+export interface HealthPoint {
+  hero: number;
+  oppt: number;
+}
+
+/** Health after every step (`byStep`) and the maximum health of both players. */
+export interface HealthTimeline {
+  max: HealthPoint;
+  byStep: Map<number, HealthPoint>;
+}
+
+/** Health change of one player in one step. */
+export interface StepHealthChange {
+  /** % of max health; null when the health of the step is unknown. */
+  pct: number | null;
+  /** The same change without the damage amplification; null while there is none. */
+  effectivePct: number | null;
+}
+
 export interface StepSummary {
   number: number;
   heroAction: string;
   opptAction: string;
+  /** A "coin" step: after the 3rd step the log has two plain lines (three under TOGETHER). */
+  coin: boolean;
+  /** An empty step: nobody acted, the plain lines are filler texts. */
+  empty: boolean;
+  heroHealth: StepHealthChange;
+  opptHealth: StepHealthChange;
 }
 
 export interface BattleConfig {
@@ -54,6 +84,8 @@ export interface BattleConfig {
 export interface PlayerState {
   name: string;
   health: number;
+  /** Max health, 0 while unknown. */
+  maxHealth: number;
   powerCounter: number;
   miracles: number;
   lastAction: string;
@@ -64,6 +96,10 @@ export interface PlayerState {
 
 export interface BattleState {
   currentStep: number;
+  /** Number of the last step of the log. */
+  totalSteps: number;
+  /** Coin steps up to the current step. */
+  coins: number;
   config: BattleConfig;
   hero: PlayerState;
   oppt: PlayerState;
@@ -73,7 +109,8 @@ export interface BattleState {
 function makeInitialPlayer(name: string, startInfluences: number): PlayerState {
   return {
     name,
-    health: 100,
+    health: 0,
+    maxHealth: 0,
     powerCounter: 0,
     miracles: 0,
     lastAction: "-",
@@ -92,6 +129,8 @@ export function createInitialState(): BattleState {
   };
   return {
     currentStep: 0,
+    totalSteps: 0,
+    coins: 0,
     config,
     hero: makeInitialPlayer("HERO", config.startInfluences),
     oppt: makeInitialPlayer("OPPT", config.startInfluences),

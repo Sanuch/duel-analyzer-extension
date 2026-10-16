@@ -1,4 +1,4 @@
-import type { BattleConfig, BattleState, DuelCondition, InfluenceResult, RawStep, ResultEnvelope, StepEvent, StepSummary, VoiceResult } from "./model";
+import type { BattleConfig, BattleState, DuelCondition, HealthTimeline, InfluenceResult, RawStep, ResultEnvelope, StepEvent, StepHealthChange, StepSummary, VoiceResult } from "./model";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -30,9 +30,57 @@ export function applyConfig(state: BattleState, condition: DuelCondition): void 
   }
 }
 
+// ─── Step rules ───────────────────────────────────────────────────────────────
+
+/** Damage amplification of a step: none up to the 60th step, then +2% per step. */
+export function stepAmplification(stepNumber: number): number {
+  return stepNumber <= 60 ? 1 : 1 + (stepNumber - 60) * 0.02;
+}
+
+/**
+ * A "coin" step (the rule of the logs2 parser): after the third step the log has
+ * two plain action lines instead of one, three when the heroes go together.
+ */
+export function isCoinStep(stepNumber: number, plainCount: number, condition: DuelCondition): boolean {
+  return stepNumber > 3 && plainCount === (condition === "TOGETHER" ? 3 : 2);
+}
+
+/** Health change of one player in a step, in % of max health, plus the same without the amplification. */
+function healthChange(
+  stepNumber: number,
+  health: HealthTimeline | undefined,
+  side: "hero" | "oppt",
+): StepHealthChange {
+  const unknown: StepHealthChange = { pct: null, effectivePct: null };
+  const current = health?.byStep.get(stepNumber);
+  const previous = health?.byStep.get(stepNumber - 1);
+  const max = health?.max[side] ?? 0;
+  if (!current || !previous || max <= 0) {
+    return unknown;
+  }
+
+  const pct = ((current[side] - previous[side]) / max) * 100;
+  const factor = stepAmplification(stepNumber);
+  return { pct, effectivePct: factor > 1 ? pct / factor : null };
+}
+
 // ─── Event application ────────────────────────────────────────────────────────
 
-export function applyEvents(state: BattleState, step: RawStep, envelope: ResultEnvelope): BattleState {
+export interface ApplyOptions {
+  /**
+   * Whether coin steps can be told. The rule depends on the duel condition ("together" has
+   * one plain line more), so it is off while the condition phrases are not loaded.
+   */
+  coins?: boolean;
+}
+
+export function applyEvents(
+  state: BattleState,
+  step: RawStep,
+  envelope: ResultEnvelope,
+  health?: HealthTimeline,
+  options: ApplyOptions = {},
+): BattleState {
   const owner = resolveStepOwner(step.number);
   const actor = owner === "HERO" ? state.hero : state.oppt;
   const { events } = envelope;
@@ -102,10 +150,20 @@ export function applyEvents(state: BattleState, step: RawStep, envelope: ResultE
 
   state.currentStep = Math.max(state.currentStep, step.number);
 
+  const coin =
+    options.coins !== false && isCoinStep(step.number, step.neutralTexts.length, state.config.condition);
+  if (coin) {
+    state.coins += 1;
+  }
+
   const summary: StepSummary = {
     number: step.number,
     heroAction: owner === "HERO" ? actor.lastAction : state.hero.lastAction,
     opptAction: owner === "OPPT" ? actor.lastAction : state.oppt.lastAction,
+    coin,
+    empty: envelope.empty,
+    heroHealth: healthChange(step.number, health, "hero"),
+    opptHealth: healthChange(step.number, health, "oppt"),
   };
 
   state.steps.push(summary);
