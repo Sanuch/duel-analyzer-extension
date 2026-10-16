@@ -189,6 +189,21 @@ export interface InfluenceBlockStats {
   available: number;
 }
 
+/**
+ * How many actions of every result a player has had (the `get_*_action_stat` of logs2).
+ * A voice nobody answered (`NONE`) is not an action and is skipped.
+ */
+export function countActionResults<T extends string>(actions: readonly T[]): Map<T, number> {
+  const counts = new Map<T, number>();
+  for (const result of actions) {
+    if (result === "NONE") {
+      continue;
+    }
+    counts.set(result, (counts.get(result) ?? 0) + 1);
+  }
+  return counts;
+}
+
 export function getVoiceBlockStats(voiceActions: VoiceResult[], blockSize: number): VoiceBlockStats {
   if (blockSize === 0) return { total: 0, good: 0, extra: 0, blockSize: 0 };
 

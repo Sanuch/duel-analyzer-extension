@@ -46,6 +46,8 @@ texts) and the header warns while one is shown.
 
 The "upload the log to the server" button is hidden for now (`UPLOAD_ENABLED` in `src/ui/overlay.ts`); the upload code and the background handler stay, so it comes back by flipping the flag once a server exists.
 
+On a finished log (the one with the replay slider) the card also has a collapsible "Статистика действий" block below the last steps: how many times each god used every kind of action, counted up to the step shown. Influences: attack, heal, empty, mutual, anti; voices: attack, heal, root, spill, stink, block, mixed (plus pray / unknown when there were any, and no voices at all under "Вопли зрителей"). The same categories as the logs2 statistics; unanswered voices are not counted. The fold state is remembered in `localStorage`.
+
 Every counted influence and voice of the log gets a badge (`2/6`, `2/6 ✗`, `7/10 ✓`) so each number can
 be traced to its lines.
 

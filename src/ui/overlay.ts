@@ -1,5 +1,13 @@
-import { getInfluenceBlockStats, getVoiceBlockStats, stepAmplification } from "../core/calculator";
-import type { BattleState, DuelCondition, PlayerState, StepHealthChange, StepSummary } from "../core/model";
+import { countActionResults, getInfluenceBlockStats, getVoiceBlockStats, stepAmplification } from "../core/calculator";
+import type {
+  BattleState,
+  DuelCondition,
+  InfluenceResult,
+  PlayerState,
+  StepHealthChange,
+  StepSummary,
+  VoiceResult,
+} from "../core/model";
 import browser from "webextension-polyfill";
 
 const ROOT_ID = "duel-analyzer-live-panel";
@@ -14,6 +22,7 @@ const UPLOAD_STATUS_ID = "duel-analyzer-upload-status";
 const UPLOAD_ENABLED = false;
 const COLLAPSED_KEY = "duelAnalyzerCollapsed";
 const POSITION_KEY = "duelAnalyzerPosition";
+const STATS_COLLAPSED_KEY = "duelAnalyzerStatsCollapsed";
 const COIN = "🪙";
 const EMPTY = "🟡";
 
@@ -26,6 +35,8 @@ const HINTS = {
   prana: "Потраченная прана",
   healthChange: "Изменение здоровья за шаг в % от максимума. В скобках — с поправкой на усиление",
   empty: "Пустой шаг: никто не действовал, в логе только вспомогательные тексты (антракт, трибуны, судья)",
+  stats:
+    "Сколько раз каждый бог применил действие данного вида (как в logs2). Считается до выбранного шага; гласы без ответа не учитываются",
   coin: "Монетка: шаг с дополнительной строкой действия в логе (после 3-го шага две обычные строки, при «ходят вместе» — три)",
 } as const;
 
@@ -43,10 +54,32 @@ const CONDITIONS: Partial<Record<DuelCondition, { name: string; hint: string }>>
   EXTRA_GOLD: { name: "Призовой фонд", hint: "Дополнительный призовой фонд" },
 };
 
+/** Kinds of actions in the statistics, in the order of logs2; `extra` ones are shown only when they happened. */
+const INFLUENCE_KINDS: Array<{ result: InfluenceResult; name: string }> = [
+  { result: "ATTACK", name: "Атака" },
+  { result: "HEAL", name: "Лечение" },
+  { result: "EMPTY", name: "Пустышка" },
+  { result: "MUTUAL", name: "Обоюдка" },
+  { result: "ANTI", name: "Анти" },
+];
+
+const VOICE_KINDS: Array<{ result: VoiceResult; name: string; extra?: boolean }> = [
+  { result: "ATTACK", name: "Атака" },
+  { result: "HEAL", name: "Лечение" },
+  { result: "ROOT", name: "Корешок" },
+  { result: "SPILL", name: "Пролив" },
+  { result: "STINK", name: "Вонючка" },
+  { result: "BLOCK", name: "Блок" },
+  { result: "MIXED", name: "Mixed" },
+  { result: "PRAY", name: "Молитва", extra: true },
+  { result: "UNKNOWN", name: "Неизвестно", extra: true },
+];
+
 type Layout = "inline" | "float";
 
 let lastRender: { state: BattleState; battleOver: boolean } | null = null;
 let collapsed = readCollapsed();
+let statsCollapsed = readStatsCollapsed();
 
 /** Status of the log upload; kept here because the panel is redrawn on every step of a replay. */
 const uploadView = { text: "", className: "da-upload-status", disabled: false };
@@ -240,9 +273,20 @@ function onClick(event: Event): void {
   if (event.target.closest("[data-da-toggle]")) {
     collapsed = !collapsed;
     writeCollapsed(collapsed);
-    if (lastRender) {
-      render(lastRender.state, lastRender.battleOver);
-    }
+    redraw();
+    return;
+  }
+
+  if (event.target.closest("[data-da-stats-toggle]")) {
+    statsCollapsed = !statsCollapsed;
+    writeStatsCollapsed(statsCollapsed);
+    redraw();
+  }
+}
+
+function redraw(): void {
+  if (lastRender) {
+    render(lastRender.state, lastRender.battleOver);
   }
 }
 
@@ -293,9 +337,58 @@ function renderCard(state: BattleState, canUpload: boolean, battleOver: boolean)
       <div class="da-recent" title="${HINTS.healthChange}">
         <table class="da-table"><tbody>${recent}</tbody></table>
       </div>
+      ${renderStats(state)}
       ${renderUploadSection(canUpload, battleOver)}
     </div>
   `;
+}
+
+/** Statistics of the kinds of actions: only for a finished log (the one with the replay slider). */
+function renderStats(state: BattleState): string {
+  if (!document.getElementById("slider")) {
+    return "";
+  }
+
+  const sections = [
+    statsRows("Влияния", INFLUENCE_KINDS, state.hero.influenceActions, state.oppt.influenceActions),
+    state.config.voiceBlock > 0
+      ? statsRows("Гласы", VOICE_KINDS, state.hero.voiceActions, state.oppt.voiceActions)
+      : "",
+  ].join("");
+
+  return `
+    <div class="da-stats-head" data-da-stats-toggle title="${HINTS.stats}">
+      <span>Статистика действий</span>
+      <span class="da-stats-arrow">${statsCollapsed ? "+" : "–"}</span>
+    </div>
+    ${statsCollapsed ? "" : `<table class="da-table da-stats"><tbody>${sections}</tbody></table>`}
+  `;
+}
+
+function statsRows<T extends string>(
+  title: string,
+  kinds: Array<{ result: T; name: string; extra?: boolean }>,
+  hero: readonly T[],
+  oppt: readonly T[],
+): string {
+  const heroCounts = countActionResults(hero);
+  const opptCounts = countActionResults(oppt);
+
+  const rows = kinds
+    .map((kind) => ({
+      name: kind.name,
+      hero: heroCounts.get(kind.result) ?? 0,
+      oppt: opptCounts.get(kind.result) ?? 0,
+      extra: kind.extra ?? false,
+    }))
+    .filter((item) => !item.extra || item.hero + item.oppt > 0)
+    .map(
+      (item) =>
+        `<tr><th>${item.name}</th><td>${item.hero || "–"}</td><td>${item.oppt || "–"}</td></tr>`,
+    )
+    .join("");
+
+  return `<tr class="da-stats-title"><th colspan="3">${title}</th></tr>${rows}`;
 }
 
 function renderUploadSection(canUpload: boolean, battleOver: boolean): string {
@@ -542,6 +635,22 @@ function readCollapsed(): boolean {
   }
 }
 
+function readStatsCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(STATS_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeStatsCollapsed(value: boolean): void {
+  try {
+    window.localStorage.setItem(STATS_COLLAPSED_KEY, value ? "1" : "0");
+  } catch {
+    // Storage may be blocked by the page; the state then only lives until reload.
+  }
+}
+
 function writeCollapsed(value: boolean): void {
   try {
     window.localStorage.setItem(COLLAPSED_KEY, value ? "1" : "0");
@@ -709,6 +818,22 @@ function ensureStyle(): void {
       max-height: 140px;
       padding: 0 0 4px;
       overflow: auto;
+    }
+
+    ${root} .da-stats-head {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 8px 0;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    ${root} .da-stats .da-stats-title th {
+      width: auto;
+      padding-top: 6px;
+      text-align: left;
+      border-bottom: 1px solid #ccc;
     }
 
     ${root} .da-upload {
