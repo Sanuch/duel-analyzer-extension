@@ -10,6 +10,7 @@ import {
 } from "../core/extractor";
 import type { HealthPoint, HealthTimeline } from "../core/model";
 import { createInitialState } from "../core/model";
+import { healthDeltaPoints } from "../core/calculator";
 import { recognise } from "../core/recogniser";
 import { versionNotificationManager } from "../core/version-notification";
 import { loadBattleHealth, saveBattleHealth } from "../integrations/healthHistoryStorage";
@@ -19,6 +20,7 @@ import {
 } from "../integrations/unknownPhraseReporter";
 import { getSelectors, initResources } from "../resources-client/resourcesClient";
 import { markLog } from "../ui/logBadges";
+import { renderHealthDelta } from "../ui/healthDelta";
 import { render } from "../ui/overlay";
 
 const unknownPhraseReporter = createUnknownPhraseReporter();
@@ -275,8 +277,13 @@ function refresh(): void {
   const last = Math.max(...steps.map((step) => step.raw.number));
   const current = Math.min(extractCurrentStep() ?? last, last);
 
-  const state = buildBattleState(steps, current, collectHealth(current));
+  const health = collectHealth(current);
+  const state = buildBattleState(steps, current, health);
   render(state, isBattleOver());
+
+  if (!isBattleOver()) {
+    renderHealthDelta(healthDeltaPoints(current, health));
+  }
 
   if (badgesDirty) {
     badgesDirty = false;

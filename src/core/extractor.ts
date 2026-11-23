@@ -98,7 +98,7 @@ export function extractHealth(): HealthSnapshot | null {
   return hero && oppt ? { hero, oppt } : null;
 }
 
-function heroHealthIndex(): 0 | 1 {
+export function heroHealthIndex(): 0 | 1 {
   return document.querySelector("#hero1_stats #hp1") ? 1 : 0;
 }
 

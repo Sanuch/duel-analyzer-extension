@@ -28,10 +28,11 @@ const EMPTY = "🟡";
 
 const HINTS = {
   health: "Здоровье в % от максимума. В скобках — с поправкой на усиление после 60-го шага",
-  influence: "Влияния в текущем блоке. В скобках — номера кривых влияний в блоке",
+  influence:
+    "Влияния в текущем блоке. В скобках — номера кривых влияний в блоке. Слева — действие этого бога на текущем шаге: Ат — атака, Л — лечение, П — пустышка, О — обоюдка, Ан — анти",
   available: "В квадратных скобках — сколько влияний доступно сейчас",
   voice:
-    "Гласы в текущем блоке. В скобках — сколько из них сработало (на глас был ответ); после двоеточия — экстра-гласы: сработавшие сверх трёх за блок, за вычетом недобора в прошлых блоках",
+    "Гласы в текущем блоке. В скобках — сколько из них сработало (на глас был ответ); после двоеточия — экстра-гласы: сработавшие сверх трёх за блок, за вычетом недобора в прошлых блоках. Слева — действие этого бога на текущем шаге: Ат — атака, Л — лечение, Кр — корешок, Пл — пролив, Вн — вонючка, Бл — блок, Мх — mixed, Мл — молитва, ? — неизвестно (без ответа — пусто)",
   prana: "Потраченная прана",
   healthChange: "Изменение здоровья за шаг в % от максимума. В скобках — с поправкой на усиление",
   empty: "Пустой шаг: никто не действовал, в логе только вспомогательные тексты (антракт, трибуны, судья)",
@@ -74,6 +75,28 @@ const VOICE_KINDS: Array<{ result: VoiceResult; name: string; extra?: boolean }>
   { result: "PRAY", name: "Молитва", extra: true },
   { result: "UNKNOWN", name: "Неизвестно", extra: true },
 ];
+
+/** Short names of the actions in the rows of the current block (`Ат Л П`). */
+const INFLUENCE_ABBR: Record<InfluenceResult, string> = {
+  ATTACK: "Ат",
+  HEAL: "Л",
+  EMPTY: "П",
+  MUTUAL: "О",
+  ANTI: "Ан",
+};
+
+const VOICE_ABBR: Record<VoiceResult, string> = {
+  ATTACK: "Ат",
+  HEAL: "Л",
+  ROOT: "Кр",
+  SPILL: "Пл",
+  STINK: "Вн",
+  BLOCK: "Бл",
+  MIXED: "Мх",
+  PRAY: "Мл",
+  NONE: "",
+  UNKNOWN: "?",
+};
 
 type Layout = "inline" | "float";
 
@@ -328,8 +351,8 @@ function renderCard(state: BattleState, canUpload: boolean, battleOver: boolean)
         </thead>
         <tbody>
           ${row("Зд", HINTS.health, formatHealth(state.hero, state), formatHealth(state.oppt, state))}
-          ${row("Вл", HINTS.influence, formatInfluences(state.hero, state), formatInfluences(state.oppt, state))}
-          ${row("Гл", HINTS.voice, formatVoices(state.hero, state), formatVoices(state.oppt, state))}
+          ${row("Вл", HINTS.influence, formatInfluences("hero", state), formatInfluences("oppt", state))}
+          ${row("Гл", HINTS.voice, formatVoices("hero", state), formatVoices("oppt", state))}
           ${row("Пр", HINTS.prana, state.hero.powerCounter, state.oppt.powerCounter)}
         </tbody>
       </table>
@@ -352,7 +375,7 @@ function renderStats(state: BattleState): string {
   const sections = [
     statsRows("Влияния", INFLUENCE_KINDS, state.hero.influenceActions, state.oppt.influenceActions),
     state.config.voiceBlock > 0
-      ? statsRows("Гласы", VOICE_KINDS, state.hero.voiceActions, state.oppt.voiceActions)
+      ? statsRows("Гласы", VOICE_KINDS, state.hero.voiceActions, state.oppt.voiceActions, true)
       : "",
   ].join("");
 
@@ -370,6 +393,7 @@ function statsRows<T extends string>(
   kinds: Array<{ result: T; name: string; extra?: boolean }>,
   hero: readonly T[],
   oppt: readonly T[],
+  onlyOccurred = false,
 ): string {
   const heroCounts = countActionResults(hero);
   const opptCounts = countActionResults(oppt);
@@ -381,7 +405,7 @@ function statsRows<T extends string>(
       oppt: opptCounts.get(kind.result) ?? 0,
       extra: kind.extra ?? false,
     }))
-    .filter((item) => !item.extra || item.hero + item.oppt > 0)
+    .filter((item) => (!onlyOccurred && !item.extra) || item.hero + item.oppt > 0)
     .map(
       (item) =>
         `<tr><th>${item.name}</th><td>${item.hero || "–"}</td><td>${item.oppt || "–"}</td></tr>`,
@@ -484,25 +508,51 @@ function formatHealth(player: PlayerState, state: BattleState): string {
 }
 
 /** `4/6` — used in the current block; `4/6(2)` — and the second one was a "кривое" influence. */
-function formatInfluences(player: PlayerState, state: BattleState): string {
+function formatInfluences(side: "hero" | "oppt", state: BattleState): string {
+  const player = side === "hero" ? state.hero : state.oppt;
   const stats = getInfluenceBlockStats(
     player.influenceActions,
     state.config.influenceBlock,
     player.availableInfluences,
   );
   const backfire = stats.badPositions.length > 0 ? `(${stats.badPositions.join(",")})` : "";
-  return `${stats.total}/${stats.blockSize}${backfire}`;
+  const counter = `${stats.total}/${stats.blockSize}${backfire}`;
+  const action = currentStepAction(state, side, "influence");
+  return actionCell(action, counter);
 }
 
 /** `7/10(3)` — 7 voices used in the block, 3 of them worked; `7/10(5:2)` — and 2 extra voices. */
-function formatVoices(player: PlayerState, state: BattleState): string {
+function formatVoices(side: "hero" | "oppt", state: BattleState): string {
   if (state.config.voiceBlock === 0) {
     return "–";
   }
 
+  const player = side === "hero" ? state.hero : state.oppt;
   const stats = getVoiceBlockStats(player.voiceActions, state.config.voiceBlock);
   const worked = stats.extra > 0 ? `${stats.good}:${stats.extra}` : `${stats.good}`;
-  return `${stats.total}/${stats.blockSize}(${worked})`;
+  const counter = `${stats.total}/${stats.blockSize}(${worked})`;
+  const action = currentStepAction(state, side, "voice");
+  return actionCell(action, counter);
+}
+
+/** Short name of the influence or voice the god made in the step shown now; empty when none. */
+function currentStepAction(state: BattleState, side: "hero" | "oppt", kind: "influence" | "voice"): string {
+  const step = state.steps[state.steps.length - 1];
+  if (!step || step.number !== state.currentStep) {
+    return "";
+  }
+
+  if (kind === "influence") {
+    const result = side === "hero" ? step.heroInfluence : step.opptInfluence;
+    return result ? INFLUENCE_ABBR[result] : "";
+  }
+  const result = side === "hero" ? step.heroVoice : step.opptVoice;
+  return result ? VOICE_ABBR[result] : "";
+}
+
+/** The action of the step before the counter: `Л 3/6`. */
+function actionCell(action: string, counter: string): string {
+  return action ? `${action} ${counter}` : counter;
 }
 
 /** `-12%`, with the amplification-free value in brackets when there is an amplification: `-16% (-8%)`. */
@@ -808,6 +858,7 @@ function ensureStyle(): void {
       font-weight: bold;
       border-bottom: 1px solid #ccc;
     }
+
 
     ${root} .da-recent-title {
       padding: 0 8px;
