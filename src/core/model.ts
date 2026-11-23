@@ -72,6 +72,11 @@ export interface StepSummary {
   empty: boolean;
   heroHealth: StepHealthChange;
   opptHealth: StepHealthChange;
+  /** The influence and the voice each god answered with in this step (null when none). */
+  heroInfluence: InfluenceResult | null;
+  heroVoice: VoiceResult | null;
+  opptInfluence: InfluenceResult | null;
+  opptVoice: VoiceResult | null;
 }
 
 export interface BattleConfig {

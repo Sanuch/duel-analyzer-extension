@@ -64,6 +64,22 @@ function healthChange(
   return { pct, effectivePct: factor > 1 ? pct / factor : null };
 }
 
+/**
+ * Health change of both players in a step in HP points (not %), for the value shown next to
+ * the health of the page. null when the health of the step or the step before is unknown.
+ */
+export function healthDeltaPoints(
+  stepNumber: number,
+  health: HealthTimeline | undefined,
+): { hero: number | null; oppt: number | null } {
+  const current = health?.byStep.get(stepNumber);
+  const previous = health?.byStep.get(stepNumber - 1);
+  if (!current || !previous) {
+    return { hero: null, oppt: null };
+  }
+  return { hero: current.hero - previous.hero, oppt: current.oppt - previous.oppt };
+}
+
 // ─── Event application ────────────────────────────────────────────────────────
 
 export interface ApplyOptions {
@@ -164,6 +180,10 @@ export function applyEvents(
     empty: envelope.empty,
     heroHealth: healthChange(step.number, health, "hero"),
     opptHealth: healthChange(step.number, health, "oppt"),
+    heroInfluence: envelope.hero.influenceResult ?? null,
+    heroVoice: envelope.hero.voiceResult ?? null,
+    opptInfluence: envelope.oppt.influenceResult ?? null,
+    opptVoice: envelope.oppt.voiceResult ?? null,
   };
 
   state.steps.push(summary);
