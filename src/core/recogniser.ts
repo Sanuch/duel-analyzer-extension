@@ -7,6 +7,7 @@ const VOICE_COMMAND_RE = /[«"][^»"]{1,200}[»"]/;
 // A command is introduced by a colon or explicitly described as a voice. Quoted
 // trophy names in ordinary responses/influences must remain available to match.
 const EXPLICIT_VOICE_RE = /(?:[:：]\s*[«"][^»"]+[»"]|глас[^«"]*[«"][^»"]+[»"])/i;
+const QUOTED_TEXT_RE = /[«"][^»"]*[»"]/g;
 
 // condition patterns are loaded from resources; mapping is by stable index ranges
 function matchPatternResult(text: string, patterns: Array<{ pattern: string; result: string }>): string | undefined {
@@ -42,7 +43,13 @@ function analyzePlayerTexts(
   const remaining = [...playerTexts];
   let voiceCommandFound = false;
   let voiceText: string | undefined;
-  const commandIndex = remaining.findIndex((text) => EXPLICIT_VOICE_RE.test(text));
+  // Some influences quote text after a colon too, e.g. the scoreboard that shows
+  // the hero's motto and explodes ("Табло ярко вспыхнуло и выдало: «…», после чего
+  // взорвалось"). Such a line is an influence when the text outside the quotes
+  // matches an influence phrase; a voice that merely quotes one stays a voice.
+  const isInfluenceOutsideQuotes = (text: string): boolean =>
+    matchPatternResult(text.replace(QUOTED_TEXT_RE, "«»"), patterns.influence) !== undefined;
+  const commandIndex = remaining.findIndex((text) => EXPLICIT_VOICE_RE.test(text) && !isInfluenceOutsideQuotes(text));
   if (commandIndex !== -1) {
     voiceCommandFound = true;
     voiceText = remaining.splice(commandIndex, 1)[0];

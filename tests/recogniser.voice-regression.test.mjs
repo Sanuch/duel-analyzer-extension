@@ -4,7 +4,10 @@ import { build } from "esbuild";
 
 const patterns = {
   voice: [{ pattern: "повинуясь гласу, .* быстренько читает короткую молитву", result: "PRAY" }],
-  influence: [{ pattern: "Сч.т на табло замигал и изменился в пользу героя", result: "HEAL" }],
+  influence: [
+    { pattern: "Сч.т на табло замигал и изменился в пользу героя", result: "HEAL" },
+    { pattern: "ослепл.н.* вспышкой и ранен.* осколками", result: "ATTACK" },
+  ],
   miracle: [], conditions: [], emptyStep: [],
 };
 const bundle = await build({
@@ -42,4 +45,19 @@ test("prayer response is counted as a triggered voice", () => {
   ]));
   assert.equal(result.hero.voiceResult, "PRAY");
   assert.equal(result.events.find((event) => event.type === "VOICE")?.voiceResult, "PRAY");
+});
+
+test("scoreboard influence quoting the motto is not taken for the voice", () => {
+  const influenceLine = "Табло ярко вспыхнуло и выдало: «Здравствуйте», после чего взорвалось. Растеряшка ослеплён вспышкой и ранен осколками.";
+  const voiceLine = "Откуда-то сверху донёсся глас: «бей».";
+  for (const lines of [[influenceLine, voiceLine], [voiceLine, influenceLine]]) {
+    const result = recognise(step(lines));
+    assert.equal(result.hero.influenceResult, "ATTACK");
+    assert.equal(result.hero.influenceText, influenceLine);
+    assert.equal(result.hero.voiceText, voiceLine);
+    assert.equal(result.hero.voiceResult, "NONE");
+  }
+  const alone = recognise(step([influenceLine]));
+  assert.equal(alone.hero.influenceResult, "ATTACK");
+  assert.equal(alone.hero.voiceResult, undefined);
 });
