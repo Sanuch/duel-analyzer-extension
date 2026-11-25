@@ -7,6 +7,7 @@ on:
       - master
     paths:
       - 'VERSION.json'
+  workflow_dispatch:
 
 jobs:
   release:
@@ -66,7 +67,7 @@ jobs:
           rm -rf "$FIREFOX_DIR"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
